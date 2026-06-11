@@ -21,6 +21,7 @@ exports.cleanGoogleAdsData = (rows) => {
 
     return {
       platform: "Google",
+      sub_platform: "Google Ads",
 
       campaign:
         row["Campaign"] ||

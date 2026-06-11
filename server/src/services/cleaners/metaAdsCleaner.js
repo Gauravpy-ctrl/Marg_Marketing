@@ -19,8 +19,23 @@ exports.cleanMetaAdsData = (rows) => {
       ) || 0;
     };
 
+    const rawPublisher = (
+      row["Publisher Platform"] ||
+      row["publisher_platform"] ||
+      row["Platform"] ||
+      ""
+    ).toLowerCase().trim();
+
+    let sub_platform;
+    if (rawPublisher.includes("instagram"))       sub_platform = "Instagram";
+    else if (rawPublisher.includes("messenger"))  sub_platform = "Facebook";
+    else if (rawPublisher.includes("facebook"))   sub_platform = "Facebook";
+    else if (rawPublisher.includes("audience"))   sub_platform = "Audience Network";
+    else                                          sub_platform = "Meta";
+
     return {
       platform: "Meta",
+      sub_platform,
 
       campaign:
         row["Campaign"] ||

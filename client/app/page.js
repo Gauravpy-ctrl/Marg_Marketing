@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 
 import UploadForm from "./components/UploadForm";
 import AIInsights from "./components/AIInsights";
+import PlatformAnalytics from "./components/PlatformAnalytics";
+import CampaignAnalytics from "./components/CampaignAnalytics";
 
 const MemoryMap = dynamic(
   () => import("./components/memory/MemoryMap"),
@@ -268,8 +270,10 @@ export default function Home() {
               }}
             >
               {[
-                { id: "dashboard", label: "Dashboard" },
-                { id: "memory-tree", label: "AI Memory Tree" },
+                { id: "dashboard",          label: "Dashboard"           },
+                { id: "platform-analytics", label: "Platform Analytics"  },
+                { id: "campaign-analytics", label: "Campaign Analytics"  },
+                { id: "memory-tree",        label: "AI Memory Tree"      },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -297,6 +301,38 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            {/* PLATFORM ANALYTICS VIEW */}
+
+            {activeView === "platform-analytics" && (
+              <div style={{ marginBottom: "40px" }}>
+                <div style={{ marginBottom: "24px" }}>
+                  <h2 style={{ fontSize: "36px", fontWeight: "800", color: "#0f172a", marginBottom: "8px" }}>
+                    Platform Analytics
+                  </h2>
+                  <p style={{ color: "#64748b", fontSize: "16px" }}>
+                    Per-platform spend, revenue, ROAS, CTR, and conversion breakdown.
+                  </p>
+                </div>
+                <PlatformAnalytics platformBreakdown={kpis.platformBreakdown || {}} />
+              </div>
+            )}
+
+            {/* CAMPAIGN ANALYTICS VIEW */}
+
+            {activeView === "campaign-analytics" && (
+              <div style={{ marginBottom: "40px" }}>
+                <div style={{ marginBottom: "24px" }}>
+                  <h2 style={{ fontSize: "36px", fontWeight: "800", color: "#0f172a", marginBottom: "8px" }}>
+                    Campaign Analytics
+                  </h2>
+                  <p style={{ color: "#64748b", fontSize: "16px" }}>
+                    Campaign-level performance ranked by ROAS, with waste identification and scaling opportunities.
+                  </p>
+                </div>
+                <CampaignAnalytics campaignBreakdown={kpis.campaignBreakdown || []} />
+              </div>
+            )}
 
             {/* AI MEMORY TREE VIEW */}
 

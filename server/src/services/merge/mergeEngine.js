@@ -15,6 +15,7 @@ const getValue = (row, possibleKeys) => {
 const mergeDatasets = (googleData, metaData) => {
   const normalizedGoogle = googleData.map((row) => ({
     platform: "Google",
+    sub_platform: "Google Ads",
 
     campaign: getValue(row, [
       "Campaign",
@@ -76,6 +77,7 @@ const mergeDatasets = (googleData, metaData) => {
 
   const normalizedMeta = metaData.map((row) => ({
     platform: "Meta",
+    sub_platform: row.sub_platform || "Meta",
 
     campaign: getValue(row, [
       "Campaign name",

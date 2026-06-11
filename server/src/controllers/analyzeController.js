@@ -1,153 +1,83 @@
-const fs = require("fs");
+const fs  = require("fs");
 const csv = require("csv-parser");
 
-const {
-  cleanGoogleAdsData,
-} = require("../services/cleaners/googleAdsCleaner");
+const { cleanGoogleAdsData } = require("../services/cleaners/googleAdsCleaner");
+const { cleanMetaAdsData    } = require("../services/cleaners/metaAdsCleaner");
+const { mergeDatasets        } = require("../services/merge/mergeEngine");
+const { generateAnalytics    } = require("../services/analytics/analyticsEngine");
+const { generateAIInsights   } = require("../services/ai/aiInsightGenerator");
 
-const {
-  cleanMetaAdsData,
-} = require("../services/cleaners/metaAdsCleaner");
+// ─── Platform registry ────────────────────────────────────────────────────────
+// To add a new platform (Phase 6): create its cleaner, then add one entry here.
+// Nothing else in the pipeline needs to change.
+const PLATFORM_REGISTRY = [
+  { fileKey: "googleFile", cleaner: cleanGoogleAdsData, required: true  },
+  { fileKey: "metaFile",   cleaner: cleanMetaAdsData,   required: true  },
+  // { fileKey: "twitterFile",  cleaner: cleanTwitterAdsData,  required: false },
+  // { fileKey: "linkedinFile", cleaner: cleanLinkedInAdsData, required: false },
+];
 
-const {
-  mergeDatasets,
-} = require("../services/merge/mergeEngine");
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const {
-  generateAnalytics,
-} = require("../services/analytics/analyticsEngine");
-
-const {
-  generateAIInsights,
-} = require("../services/ai/aiInsightGenerator");
-
-
-// ===============================
-// CSV READER
-// ===============================
-
-const readCSV = (filePath) => {
-  return new Promise((resolve, reject) => {
-    const results = [];
-
+const readCSV = (filePath) =>
+  new Promise((resolve, reject) => {
+    const rows = [];
     fs.createReadStream(filePath)
       .pipe(csv())
-      .on("data", (data) => results.push(data))
-      .on("end", () => resolve(results))
+      .on("data", (row) => rows.push(row))
+      .on("end",  ()    => resolve(rows))
       .on("error", reject);
   });
-};
 
+// ─── Controller ───────────────────────────────────────────────────────────────
 
-// ===============================
-// CONTROLLER
-// ===============================
-
-exports.analyzeController = async (
-  req,
-  res
-) => {
+exports.analyzeController = async (req, res) => {
   try {
     console.log("FILES:", req.files);
 
-    // ===========================
-    // VALIDATION
-    // ===========================
+    // Validate required files
+    const missing = PLATFORM_REGISTRY
+      .filter((p) => p.required && !req.files?.[p.fileKey])
+      .map((p) => p.fileKey);
 
-    if (
-      !req.files ||
-      !req.files.googleFile ||
-      !req.files.metaFile
-    ) {
+    if (missing.length > 0) {
       return res.status(400).json({
-        error:
-          "Google and Meta files required",
+        error: `Missing required files: ${missing.join(", ")}`,
       });
     }
 
-    // ===========================
-    // FILE PATHS
-    // ===========================
-
-    const googlePath =
-      req.files.googleFile[0].path;
-
-    const metaPath =
-      req.files.metaFile[0].path;
-
-    console.log("Google:", googlePath);
-    console.log("Meta:", metaPath);
-
-    // ===========================
-    // READ CSV
-    // ===========================
-
-    const googleRows =
-      await readCSV(googlePath);
-
-    const metaRows =
-      await readCSV(metaPath);
-
-    console.log(
-      "Google Rows:",
-      googleRows.length
+    // Read, clean, and collect all platform datasets in registry order
+    const cleanedDatasets = await Promise.all(
+      PLATFORM_REGISTRY
+        .filter((p) => req.files?.[p.fileKey])
+        .map(async ({ fileKey, cleaner }) => {
+          const path = req.files[fileKey][0].path;
+          console.log(`Reading ${fileKey}:`, path);
+          const rows = await readCSV(path);
+          console.log(`${fileKey} rows:`, rows.length);
+          return cleaner(rows);
+        })
     );
 
-    console.log(
-      "Meta Rows:",
-      metaRows.length
-    );
+    // Merge all cleaned datasets into one unified array
+    // mergeDatasets accepts (googleData, metaData) — pass them positionally
+    // for backward compatibility; future platforms are appended via concat.
+    const [cleanedGoogle, cleanedMeta, ...extras] = cleanedDatasets;
+    const mergedData = [
+      ...mergeDatasets(cleanedGoogle, cleanedMeta),
+      ...extras.flat(),
+    ];
 
-    // ===========================
-    // CLEAN DATA
-    // ===========================
+    // Analytics (includes platformBreakdown and campaignBreakdown)
+    const kpis = generateAnalytics(mergedData);
 
-    const cleanedGoogle =
-      cleanGoogleAdsData(googleRows);
+    // AI insights (uses enriched prompt with platform + campaign context)
+    const insights = await generateAIInsights(mergedData, kpis);
 
-    const cleanedMeta =
-      cleanMetaAdsData(metaRows);
+    return res.json({ success: true, kpis, insights });
 
-    // ===========================
-    // MERGE
-    // ===========================
-
-    const mergedData = mergeDatasets(
-      cleanedGoogle,
-      cleanedMeta
-    );
-
-    // ===========================
-    // ANALYTICS
-    // ===========================
-
-    const kpis =
-      generateAnalytics(mergedData);
-
-    // ===========================
-    // AI INSIGHTS
-    // ===========================
-
-    const insights =
-      await generateAIInsights(
-        mergedData,
-        kpis
-      );
-
-    // ===========================
-    // RESPONSE
-    // ===========================
-
-    return res.json({
-      success: true,
-      kpis,
-      insights,
-    });
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      error: error.message,
-    });
+    console.error("analyzeController error:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
