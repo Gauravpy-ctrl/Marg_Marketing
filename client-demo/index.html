@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketing AI Engine — Executive Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ─── Reset ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── Root vars (mirrors globals.css) ───────────────── */
+    :root {
+      --bg-base:      #060d1a;
+      --bg-card:      #0a1628;
+      --bg-card-2:    #0d1e35;
+      --border:       rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.13);
+      --blue:         #3b82f6;
+      --blue-dim:     rgba(59,130,246,0.14);
+      --purple:       #8b5cf6;
+      --purple-dim:   rgba(139,92,246,0.14);
+      --green:        #10b981;
+      --green-dim:    rgba(16,185,129,0.14);
+      --amber:        #f59e0b;
+      --red:          #ef4444;
+      --text-1:       #f1f5f9;
+      --text-2:       #94a3b8;
+      --text-3:       #475569;
+      --grid:         #1a2d45;
+    }
+
+    /* ─── Base ───────────────────────────────────────────── */
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-1);
+      -webkit-font-smoothing: antialiased;
+      padding: 40px 44px 80px;
+      min-width: 320px;
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+
+    /* ─── Animations ─────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(18px); }
+      to   { opacity:1; transform:translateY(0);    }
+    }
+    @keyframes pulse-dot {
+      0%,100% { opacity:1; }
+      50%      { opacity:0.4; }
+    }
+    .fade-up { animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+    .delay-1 { animation-delay:.08s; }
+    .delay-2 { animation-delay:.16s; }
+    .delay-3 { animation-delay:.24s; }
+    .delay-4 { animation-delay:.32s; }
+    .delay-5 { animation-delay:.40s; }
+    .delay-6 { animation-delay:.48s; }
+    .delay-7 { animation-delay:.56s; }
+    .delay-8 { animation-delay:.64s; }
+
+    /* ─── Card ───────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      transition: border-color .2s, background .2s;
+    }
+    .card:hover { border-color: var(--border-hover); background: var(--bg-card-2); }
+
+    /* ─── Layout helpers ─────────────────────────────────── */
+    .page-wrap { max-width: 1560px; margin: 0 auto; }
+
+    .grid-auto { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:18px; }
+
+    .grid-2-1  { display:grid; grid-template-columns:2fr 1fr; gap:22px; }
+    .grid-3    { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
+    .grid-2    { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+    .grid-2-2  { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+
+    @media(max-width:1100px) { .grid-2-1 { grid-template-columns:1fr; } .grid-3 { grid-template-columns:1fr 1fr; } }
+    @media(max-width:780px)  { .grid-3,.grid-2,.grid-2-2 { grid-template-columns:1fr; } }
+
+    .section { margin-bottom: 28px; }
+
+    /* ─── Header ─────────────────────────────────────────── */
+    .header { margin-bottom: 44px; }
+    .header-badge {
+      display: inline-flex; align-items:center; gap:7px;
+      background: var(--blue-dim); border:1px solid rgba(59,130,246,.25);
+      border-radius:99px; padding:5px 14px; margin-bottom:18px;
+    }
+    .header-badge span { color:var(--blue); font-size:11px; font-weight:700; letter-spacing:.1em; }
+    .header-dot { width:6px; height:6px; border-radius:50%; background:var(--blue);
+                  box-shadow:0 0 8px var(--blue); animation:pulse-dot 2s ease infinite; }
+    .header h1 { font-size:clamp(32px,4vw,56px); font-weight:900; line-height:1.1;
+                 background:linear-gradient(135deg,#f1f5f9,#94a3b8);
+                 -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .header p  { color:var(--text-2); font-size:17px; margin-top:10px; max-width:520px; line-height:1.7; }
+    .header-meta { display:flex; align-items:center; gap:20px; margin-top:20px; flex-wrap:wrap; }
+    .header-stat { font-size:13px; color:var(--text-3); }
+    .header-stat strong { color:var(--text-2); font-weight:600; }
+
+    /* ─── KPI cards ──────────────────────────────────────── */
+    .kpi-card { padding:24px 22px; }
+    .kpi-label { font-size:12px; font-weight:600; color:var(--text-3); letter-spacing:.06em; text-transform:uppercase; margin-bottom:14px; }
+    .kpi-value { font-size:clamp(28px,3vw,40px); font-weight:800; letter-spacing:-.02em; line-height:1; }
+    .kpi-delta { display:inline-flex; align-items:center; gap:4px; margin-top:10px;
+                 font-size:11px; font-weight:600; padding:3px 9px; border-radius:99px; }
+    .kpi-delta.up   { background:var(--green-dim); color:var(--green); }
+    .kpi-delta.down { background:rgba(244,63,94,.12); color:#f43f5e; }
+    .kpi-delta.neu  { background:rgba(148,163,184,.1); color:var(--text-2); }
+
+    /* ─── Chart containers ───────────────────────────────── */
+    .chart-wrap { position:relative; width:100%; }
+    .chart-wrap canvas { display:block; }
+    .chart-pad { padding:26px 24px; }
+    .chart-title { font-size:20px; font-weight:700; color:var(--text-1); margin-bottom:20px; }
+    .chart-sub   { font-size:13px; color:var(--text-2); margin-top:4px; font-weight:400; }
+
+    /* ─── Insight blurb (under charts) ──────────────────── */
+    .insight-box {
+      margin-top:18px; background:rgba(255,255,255,.03);
+      border:1px solid var(--border); border-radius:14px; padding:16px 18px;
+    }
+    .insight-box h4 { font-size:14px; font-weight:700; color:var(--text-1); margin-bottom:8px; }
+    .insight-box p  { font-size:13px; color:var(--text-2); line-height:1.75; }
+
+    /* ─── Executive summary card ─────────────────────────── */
+    .exec-card {
+      background: linear-gradient(145deg,#0d1f3c,#060d1a);
+      border:1px solid rgba(59,130,246,.2);
+      border-radius:20px; padding:30px 28px;
+      box-shadow:0 0 60px rgba(59,130,246,.08);
+      height:100%; display:flex; flex-direction:column;
+    }
+    .exec-card h2 { font-size:28px; font-weight:800; color:#fff; margin-bottom:16px; line-height:1.2; }
+    .exec-card p  { font-size:15px; line-height:1.85; color:#cbd5e1; flex:1; }
+    .exec-stats { margin-top:24px; background:rgba(255,255,255,.06); border-radius:14px; padding:18px 20px; }
+    .exec-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:14px; color:#94a3b8; }
+    .exec-row:not(:last-child) { border-bottom:1px solid rgba(255,255,255,.06); }
+    .exec-row strong { color:#f1f5f9; font-weight:700; }
+    .exec-badge {
+      display:inline-block; background:linear-gradient(135deg,var(--blue),var(--purple));
+      color:#fff; font-size:10px; font-weight:700; letter-spacing:.1em;
+      padding:4px 12px; border-radius:99px; margin-bottom:20px;
+    }
+
+    /* ─── Priority actions ───────────────────────────────── */
+    .action-card { padding:22px; }
+    .action-num {
+      width:28px; height:28px; border-radius:8px;
+      background:var(--blue-dim); color:var(--blue);
+      font-size:12px; font-weight:800; display:flex; align-items:center;
+      justify-content:center; margin-bottom:14px; flex-shrink:0;
+    }
+    .action-title { font-size:16px; font-weight:700; color:var(--text-1); margin-bottom:8px; }
+    .action-body  { font-size:13px; color:var(--text-2); line-height:1.7; }
+    .action-priority {
+      display:inline-block; font-size:10px; font-weight:700; letter-spacing:.08em;
+      padding:3px 10px; border-radius:99px; margin-top:12px;
+    }
+    .pri-high { background:rgba(239,68,68,.12); color:#f87171; }
+    .pri-med  { background:var(--amber-dim,rgba(245,158,11,.12)); color:var(--amber); }
+    .pri-low  { background:var(--green-dim); color:var(--green); }
+
+    /* ─── AI Insights ────────────────────────────────────── */
+    .insights-header { margin-bottom:28px; }
+    .insights-header h2 { font-size:clamp(28px,3vw,42px); font-weight:900; }
+    .insights-header p  { color:var(--text-2); font-size:15px; margin-top:8px; }
+
+    .insight-card { padding:0; overflow:hidden; }
+    .insight-card.featured {
+      background:linear-gradient(145deg,#1e3a8a,#1e1b4b);
+      border-color:rgba(99,102,241,.3);
+    }
+    .insight-card-head {
+      padding:20px 24px 16px; border-bottom:1px solid var(--border);
+    }
+    .insight-card.featured .insight-card-head { border-color:rgba(255,255,255,.12); }
+    .insight-card-head h3 {
+      font-size:18px; font-weight:700; color:var(--blue);
+    }
+    .insight-card.featured .insight-card-head h3 { color:#a5b4fc; }
+    .insight-card-body { padding:20px 24px; }
+    .insight-card-body p { font-size:14px; line-height:1.8; color:var(--text-2); margin-bottom:12px; }
+    .insight-card.featured .insight-card-body p { color:#c7d2fe; }
+    .insight-card-body p:last-child { margin-bottom:0; }
+    .insight-bullet {
+      display:flex; gap:10px; margin-bottom:10px;
+      font-size:14px; color:var(--text-2); line-height:1.65;
+    }
+    .insight-bullet::before {
+      content:"→"; color:var(--blue); font-weight:700;
+      flex-shrink:0; margin-top:1px;
+    }
+    .insight-card.featured .insight-bullet { color:#c7d2fe; }
+    .insight-card.featured .insight-bullet::before { color:#818cf8; }
+
+    /* ─── Section label ──────────────────────────────────── */
+    .section-label {
+      font-size:11px; font-weight:700; letter-spacing:.12em;
+      color:var(--text-3); text-transform:uppercase; margin-bottom:18px;
+    }
+
+    /* ─── Divider ────────────────────────────────────────── */
+    .divider { border:none; border-top:1px solid var(--border); margin:36px 0; }
+
+    /* ─── Footer ─────────────────────────────────────────── */
+    .footer { text-align:center; padding-top:48px; }
+    .footer p { font-size:12px; color:var(--text-3); line-height:1.8; }
+    .footer strong { color:var(--text-2); }
+  </style>
+</head>
+
+<body>
+<div class="page-wrap">
+
+  <!-- ══════════════════ HEADER ══════════════════ -->
+  <header class="header fade-up">
+    <div class="header-badge">
+      <span class="header-dot"></span>
+      <span>LIVE DEMO · SAMPLE DATA</span>
+    </div>
+    <h1>AI Marketing Intelligence</h1>
+    <p>Enterprise-grade analytics across Google Ads + Meta Ads — KPI analysis, platform benchmarking, and AI-generated strategy.</p>
+    <div class="header-meta">
+      <span class="header-stat">Period: <strong>Jan – May 2025</strong></span>
+      <span class="header-stat">Platforms: <strong>Google Ads · Meta Ads</strong></span>
+      <span class="header-stat">Model: <strong>Claude Sonnet 4.6 via OpenRouter</strong></span>
+    </div>
+  </header>
+
+  <!-- ══════════════════ KPI CARDS ══════════════════ -->
+  <section class="section">
+    <div class="section-label fade-up delay-1">Key Performance Indicators</div>
+    <div class="grid-auto">
+
+      <div class="card kpi-card fade-up delay-1">
+        <div class="kpi-label">Total Spend</div>
+        <div class="kpi-value" style="color:#f1f5f9">$75.0K</div>
+        <div class="kpi-delta neu">↑ Budget deployed</div>
+      </div>
+
+      <div class="card kpi-card fade-up delay-2">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" style="color:#10b981">$252.0K</div>
+        <div class="kpi-delta up">↑ 18% vs prior period</div>
+      </div>
+
+      <div class="card kpi-card fade-up delay-3">
+        <div class="kpi-label">Total Clicks</div>
+        <div class="kpi-value" style="color:#3b82f6">48.5K</div>
+        <div class="kpi-delta up">↑ 11% MoM</div>
+      </div>
+
+      <div class="card kpi-card fade-up delay-4">
+        <div class="kpi-label">Impressions</div>
+        <div class="kpi-value" style="color:#8b5cf6">2.85M</div>
+        <div class="kpi-delta neu">Stable reach</div>
+      </div>
+
+      <div class="card kpi-card fade-up delay-5">
+        <div class="kpi-label">Conversions</div>
+        <div class="kpi-value" style="color:#06b6d4">3,240</div>
+        <div class="kpi-delta up">↑ 9% MoM</div>
+      </div>
+
+      <div class="card kpi-card fade-up delay-6">
+        <div class="kpi-label">Overall CTR</div>
+        <div class="kpi-value" style="color:#f59e0b">1.70%</div>
+        <div class="kpi-delta down">↓ Below 2% target</div>
+      </div>
+
+      <div class="card kpi-card fade-up delay-7">
+        <div class="kpi-label">Overall ROAS</div>
+        <div class="kpi-value" style="color:#10b981">3.36x</div>
+        <div class="kpi-delta up">↑ Strong efficiency</div>
+      </div>
+
+      <div class="card kpi-card fade-up delay-8">
+        <div class="kpi-label">Conversion Rate</div>
+        <div class="kpi-value" style="color:#f1f5f9">6.68%</div>
+        <div class="kpi-delta up">↑ Above industry avg</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════ REVENUE vs SPEND + EXEC SUMMARY ══════════════════ -->
+  <section class="section fade-up delay-2">
+    <div class="grid-2-1">
+
+      <!-- Bar chart -->
+      <div class="card chart-pad">
+        <div class="chart-title">Revenue vs Spend<span class="chart-sub"> — by platform</span></div>
+        <div class="chart-wrap" style="height:340px">
+          <canvas id="barChart"></canvas>
+        </div>
+        <div class="insight-box">
+          <h4>AI Insights</h4>
+          <p>Google Ads generates substantially higher revenue efficiency (4.0x ROAS). Meta Ads spend is high relative to revenue. Budget reallocation toward high-performing Google campaigns could improve blended ROAS by 0.4–0.6x.</p>
+        </div>
+      </div>
+
+      <!-- Executive Summary -->
+      <div class="exec-card">
+        <div class="exec-badge">AI EXECUTIVE SUMMARY</div>
+        <h2>Google Ads is the clear performance leader</h2>
+        <p>Google Ads significantly outperforms Meta across ROAS, revenue generation, and conversion efficiency. Multiple under-performing Meta campaigns are consuming budget without delivering proportional returns — creating strong optimization opportunities. Immediate reallocation recommended.</p>
+        <div class="exec-stats">
+          <div class="exec-row"><span>Total ROAS</span><strong>3.36x</strong></div>
+          <div class="exec-row"><span>Google ROAS</span><strong style="color:#10b981">4.00x</strong></div>
+          <div class="exec-row"><span>Meta ROAS</span><strong style="color:#f59e0b">2.40x</strong></div>
+          <div class="exec-row"><span>Conversion Rate</span><strong>6.68%</strong></div>
+          <div class="exec-row"><span>Best Platform</span><strong style="color:#3b82f6">Google Ads</strong></div>
+          <div class="exec-row"><span>Revenue Gap</span><strong>$108K</strong></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════ PIE + FUNNEL + SCATTER ══════════════════ -->
+  <section class="section fade-up delay-3">
+    <div class="grid-3">
+
+      <!-- Pie chart -->
+      <div class="card chart-pad">
+        <div class="chart-title">Platform Revenue Share</div>
+        <div class="chart-wrap" style="height:280px">
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div class="insight-box">
+          <h4>Revenue Insights</h4>
+          <p>Google Ads accounts for 71.4% of total attributed revenue, indicating significantly stronger monetisation efficiency versus Meta campaigns.</p>
+        </div>
+      </div>
+
+      <!-- Line (funnel) chart -->
+      <div class="card chart-pad">
+        <div class="chart-title">Conversion Funnel</div>
+        <div class="chart-wrap" style="height:280px">
+          <canvas id="funnelChart"></canvas>
+        </div>
+        <div class="insight-box">
+          <h4>Funnel Insights</h4>
+          <p>Large drop-offs between impressions and clicks signal opportunities for stronger creatives, better audience targeting, and landing-page optimisation.</p>
+        </div>
+      </div>
+
+      <!-- Scatter chart -->
+      <div class="card chart-pad">
+        <div class="chart-title">CTR vs Conversion</div>
+        <div class="chart-wrap" style="height:280px">
+          <canvas id="scatterChart"></canvas>
+        </div>
+        <div class="insight-box">
+          <h4>Performance Insights</h4>
+          <p>Campaigns with higher CTR consistently show stronger conversion performance — confirming the importance of engagement-focused creatives and intent-aligned audiences.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════ AREA + RADAR ══════════════════ -->
+  <section class="section fade-up delay-4">
+    <div class="grid-2">
+
+      <div class="card chart-pad">
+        <div class="chart-title">Revenue Growth Trend</div>
+        <div class="chart-wrap" style="height:300px">
+          <canvas id="areaChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card chart-pad">
+        <div class="chart-title">Platform Performance Radar</div>
+        <div class="chart-wrap" style="height:300px">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ══════════════════ PRIORITY ACTIONS ══════════════════ -->
+  <section class="section fade-up delay-5">
+    <div class="section-label">Priority Actions</div>
+    <h2 style="font-size:clamp(24px,3vw,36px);font-weight:800;margin-bottom:24px;">What to do next</h2>
+    <div class="grid-2-2">
+
+      <div class="card action-card">
+        <div class="action-num">1</div>
+        <div class="action-title">Pause weak Meta campaigns</div>
+        <div class="action-body">Bottom-quartile Meta campaigns are consuming ~35% of budget with below-threshold ROAS. Pausing them immediately frees $10–12K for reallocation.</div>
+        <span class="action-priority pri-high">HIGH PRIORITY</span>
+      </div>
+
+      <div class="card action-card">
+        <div class="action-num">2</div>
+        <div class="action-title">Scale top Google campaigns</div>
+        <div class="action-body">Top Google Search campaigns show 5x+ ROAS and scalable conversion volume. A 25% budget increase on these campaigns is projected to yield $45K additional revenue.</div>
+        <span class="action-priority pri-high">HIGH PRIORITY</span>
+      </div>
+
+      <div class="card action-card">
+        <div class="action-num">3</div>
+        <div class="action-title">Improve audience targeting on Meta</div>
+        <div class="action-body">CTR gaps indicate mismatched audience intent. Narrowing Meta audiences to purchase-intent segments and lookalikes of converters can close the ROAS gap by 0.6–0.8x.</div>
+        <span class="action-priority pri-med">MEDIUM PRIORITY</span>
+      </div>
+
+      <div class="card action-card">
+        <div class="action-num">4</div>
+        <div class="action-title">A/B test creatives and landing pages</div>
+        <div class="action-body">Current conversion rate of 6.68% has room to reach 8%+ with systematic creative testing. Each 1% improvement in CVR drives an estimated $22K in incremental monthly revenue.</div>
+        <span class="action-priority pri-low">ONGOING</span>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ══════════════════ AI STRATEGIC INSIGHTS ══════════════════ -->
+  <section class="section fade-up delay-6">
+    <div class="insights-header">
+      <h2 class="insights-header" style="font-size:clamp(28px,3vw,42px);font-weight:900;">AI Strategic Insights</h2>
+      <p style="color:var(--text-2);font-size:15px;margin-top:8px;">AI-generated executive intelligence, strategic recommendations, risk analysis, and growth opportunities.</p>
+    </div>
+
+    <div class="grid-2">
+
+      <div class="card insight-card featured">
+        <div class="insight-card-head">
+          <h3>Executive Summary</h3>
+        </div>
+        <div class="insight-card-body">
+          <p>Your combined Google Ads + Meta Ads investment of $75,000 generated $252,000 in attributed revenue — a blended ROAS of 3.36x. Google Ads is the clear engine of growth, operating at 4.0x ROAS with 71% revenue share on 60% of budget.</p>
+          <p>Meta Ads, while producing meaningful volume, lags significantly in efficiency at 2.4x ROAS. Structural issues in audience targeting and creative relevance are the primary drivers of underperformance.</p>
+          <p>The portfolio has strong scalable potential. Estimated revenue uplift from the recommended reallocation and optimisations is $60–85K over the next 60 days.</p>
+        </div>
+      </div>
+
+      <div class="card insight-card">
+        <div class="insight-card-head">
+          <h3>Platform Comparison</h3>
+        </div>
+        <div class="insight-card-body">
+          <div class="insight-bullet">Google Ads ROAS of 4.0x exceeds Meta by 1.6x — a significant efficiency delta that should drive immediate budget reallocation.</div>
+          <div class="insight-bullet">Meta's 2.4x ROAS is above break-even but below the 3.0x threshold required to justify current spend levels on a competitive account.</div>
+          <div class="insight-bullet">CTR disparity (Google 3.8% vs Meta 1.2%) suggests Meta ad creatives are not resonating with targeted audiences — a solvable creative problem.</div>
+          <div class="insight-bullet">Conversion rate is stronger on Google (7.8%) vs Meta (4.9%), indicating stronger purchase intent from search-driven traffic.</div>
+        </div>
+      </div>
+
+      <div class="card insight-card">
+        <div class="insight-card-head">
+          <h3>Campaign Intelligence</h3>
+        </div>
+        <div class="insight-card-body">
+          <div class="insight-bullet">Top 20% of Google campaigns generate 68% of total Google revenue — classic power-law distribution. Scale these immediately.</div>
+          <div class="insight-bullet">Bottom 30% of Meta campaigns account for 38% of Meta spend but only 12% of Meta revenue. These are prime candidates for immediate pausing.</div>
+          <div class="insight-bullet">Branded Google Search campaigns show the highest ROAS (6.2x) with strong conversion rates — increase budget allocation.</div>
+          <div class="insight-bullet">Meta Retargeting campaigns outperform prospecting by 2.1x on ROAS. Shifting Meta budget mix toward retargeting is a quick win.</div>
+        </div>
+      </div>
+
+      <div class="card insight-card">
+        <div class="insight-card-head">
+          <h3>Scaling Opportunities</h3>
+        </div>
+        <div class="insight-card-body">
+          <div class="insight-bullet">Google Search has significant headroom — estimated 35–40% budget increase before hitting diminishing returns, based on impression share data.</div>
+          <div class="insight-bullet">Google Shopping campaigns are underinvested relative to their ROAS contribution. A dedicated budget increase of $8–10K is projected to yield $32–40K revenue.</div>
+          <div class="insight-bullet">Meta Reels and short-form video formats are outperforming static ads by 1.8x on CTR. Shifting 40% of Meta creative budget to video is recommended.</div>
+          <div class="insight-bullet">MoM revenue trajectory (+28%) is sustainable with current efficiency ratios. Maintaining spend pacing with proposed optimisations projects $320K+ revenue in Month 6.</div>
+        </div>
+      </div>
+
+      <div class="card insight-card">
+        <div class="insight-card-head">
+          <h3>Budget Waste Analysis</h3>
+        </div>
+        <div class="insight-card-body">
+          <div class="insight-bullet">Estimated $11,500 in wasted Meta spend identified across underperforming ad sets with ROAS below 1.2x — immediate pause recommended.</div>
+          <div class="insight-bullet">Keyword overlap between broad and exact match Google campaigns is driving $3,200 in redundant spend. Negative keyword cleanup required.</div>
+          <div class="insight-bullet">Off-peak hour bidding on Meta is contributing to 22% of impressions with 0.6% CTR — dayparting optimisation could recover $2,800/month.</div>
+          <div class="insight-bullet">Geographic targeting inefficiencies: 4 regions consuming 18% of Meta budget at below-average ROAS. Recommend geo-exclusion or bid adjustment.</div>
+        </div>
+      </div>
+
+      <div class="card insight-card">
+        <div class="insight-card-head">
+          <h3>Risk Detection</h3>
+        </div>
+        <div class="insight-card-body">
+          <div class="insight-bullet">Over-reliance on Google (71% revenue share) creates platform concentration risk. Diversification into Meta or other channels is a medium-term priority.</div>
+          <div class="insight-bullet">Conversion rate improvements are dependent on landing page performance — any site changes should be monitored for impact on CVR immediately.</div>
+          <div class="insight-bullet">Rising CPC trend on Google (+8% MoM) will compress ROAS if conversion rates do not improve proportionally. Monitor weekly.</div>
+          <div class="insight-bullet">Meta audience saturation risk: frequency above 3.5 on key ad sets indicates audience fatigue. Creative refresh cycle required within 2 weeks.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════ FOOTER ══════════════════ -->
+  <footer class="footer">
+    <p>Generated by <strong>Marketing AI Engine</strong> · Powered by <strong>Claude via OpenRouter</strong> · Sample data for demonstration purposes</p>
+    <p style="margin-top:6px">github.com/Gauravpy-ctrl/Marg_Marketing</p>
+  </footer>
+
+</div><!-- /page-wrap -->
+
+<!-- ════════════════════════════════════════════════════════════
+     CHARTS
+════════════════════════════════════════════════════════════ -->
+<script>
+  /* ── Global Chart.js defaults for dark theme ── */
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = '#1a2d45';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+
+  const BLUE   = '#3b82f6';
+  const PURPLE = '#8b5cf6';
+  const GREEN  = '#10b981';
+  const AMBER  = '#f59e0b';
+  const CYAN   = '#06b6d4';
+
+  const BLUE_BG   = 'rgba(59,130,246,0.18)';
+  const PURPLE_BG = 'rgba(139,92,246,0.18)';
+  const GREEN_BG  = 'rgba(16,185,129,0.18)';
+
+  const tooltipStyle = {
+    backgroundColor: '#0d1e35',
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    titleColor: '#f1f5f9',
+    bodyColor: '#94a3b8',
+    padding: 12,
+    cornerRadius: 10,
+    titleFont: { weight: '700', size: 13 },
+    bodyFont:  { size: 12 },
+  };
+
+  /* ── 1. REVENUE vs SPEND (Bar) ── */
+  new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Google Ads', 'Meta Ads'],
+      datasets: [
+        {
+          label: 'Revenue',
+          data: [180000, 72000],
+          backgroundColor: BLUE,
+          borderRadius: 8,
+          borderSkipped: false,
+        },
+        {
+          label: 'Spend',
+          data: [45000, 30000],
+          backgroundColor: PURPLE,
+          borderRadius: 8,
+          borderSkipped: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 12, borderRadius: 4 } },
+        tooltip: { ...tooltipStyle, callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: $${(ctx.parsed.y/1000).toFixed(0)}K`
+        }},
+      },
+      scales: {
+        x: { grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8',
+              callback: v => '$' + (v >= 1000 ? (v/1000)+'K' : v) } },
+      },
+    },
+  });
+
+  /* ── 2. PLATFORM REVENUE SHARE (Pie) ── */
+  new Chart(document.getElementById('pieChart'), {
+    type: 'pie',
+    data: {
+      labels: ['Google Ads', 'Meta Ads'],
+      datasets: [{
+        data: [180000, 72000],
+        backgroundColor: [BLUE, PURPLE],
+        borderColor: '#0a1628',
+        borderWidth: 3,
+        hoverOffset: 8,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 12 }, padding: 16, boxWidth: 12 } },
+        tooltip: { ...tooltipStyle, callbacks: {
+          label: ctx => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const pct   = ((ctx.parsed / total) * 100).toFixed(1);
+            return ` $${(ctx.parsed/1000).toFixed(0)}K (${pct}%)`;
+          }
+        }},
+      },
+    },
+  });
+
+  /* ── 3. CONVERSION FUNNEL (Line) ── */
+  new Chart(document.getElementById('funnelChart'), {
+    type: 'line',
+    data: {
+      labels: ['Impressions', 'Clicks', 'Conversions'],
+      datasets: [{
+        label: 'Volume',
+        data: [2850000, 48500, 3240],
+        borderColor: BLUE,
+        backgroundColor: BLUE_BG,
+        borderWidth: 3,
+        pointBackgroundColor: BLUE,
+        pointRadius: 6,
+        pointHoverRadius: 9,
+        tension: 0.35,
+        fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...tooltipStyle, callbacks: {
+          label: ctx => ` ${Number(ctx.parsed.y).toLocaleString()}`
+        }},
+      },
+      scales: {
+        x: { grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8' } },
+        y: {
+          type: 'logarithmic',
+          grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8',
+            callback: v => v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'K' : v },
+        },
+      },
+    },
+  });
+
+  /* ── 4. CTR vs CONVERSION (Scatter) ── */
+  new Chart(document.getElementById('scatterChart'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Campaigns',
+        data: [
+          {x:1.2,y:0.5},{x:1.8,y:0.9},{x:2.1,y:1.2},{x:2.5,y:1.8},
+          {x:3.0,y:2.1},{x:3.2,y:2.4},{x:3.8,y:3.0},{x:4.5,y:3.1},
+          {x:0.8,y:0.3},{x:1.5,y:1.0},{x:2.8,y:2.2},{x:4.1,y:3.5},
+        ],
+        backgroundColor: BLUE,
+        pointRadius: 7,
+        pointHoverRadius: 10,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...tooltipStyle, callbacks: {
+          label: ctx => ` CTR: ${ctx.parsed.x}%  Conv: ${ctx.parsed.y}%`
+        }},
+      },
+      scales: {
+        x: { title: { display: true, text: 'CTR (%)', color: '#94a3b8', font:{size:11} },
+             grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8' } },
+        y: { title: { display: true, text: 'Conversion Rate (%)', color: '#94a3b8', font:{size:11} },
+             grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8' } },
+      },
+    },
+  });
+
+  /* ── 5. REVENUE GROWTH TREND (Area) ── */
+  new Chart(document.getElementById('areaChart'), {
+    type: 'line',
+    data: {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+      datasets: [
+        {
+          label: 'Revenue ($K)',
+          data: [120, 220, 320, 450, 610],
+          borderColor: BLUE,
+          backgroundColor: 'rgba(59,130,246,0.12)',
+          borderWidth: 3,
+          pointBackgroundColor: BLUE,
+          pointRadius: 5,
+          tension: 0.4,
+          fill: true,
+        },
+        {
+          label: 'Spend ($K)',
+          data: [80, 120, 160, 220, 300],
+          borderColor: PURPLE,
+          backgroundColor: 'rgba(139,92,246,0.10)',
+          borderWidth: 3,
+          pointBackgroundColor: PURPLE,
+          pointRadius: 5,
+          tension: 0.4,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font:{size:12}, boxWidth:12, borderRadius:4 } },
+        tooltip: { ...tooltipStyle, callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y}K`
+        }},
+      },
+      scales: {
+        x: { grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: '#1a2d45' }, ticks: { color: '#94a3b8',
+              callback: v => '$' + v + 'K' } },
+      },
+    },
+  });
+
+  /* ── 6. PLATFORM PERFORMANCE RADAR ── */
+  new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: {
+      labels: ['CTR', 'ROAS', 'Conversion', 'Revenue', 'Efficiency'],
+      datasets: [
+        {
+          label: 'Google Ads',
+          data: [4.2, 14, 3.5, 9, 8.5],
+          borderColor: BLUE,
+          backgroundColor: 'rgba(59,130,246,0.2)',
+          borderWidth: 2.5,
+          pointBackgroundColor: BLUE,
+          pointRadius: 4,
+        },
+        {
+          label: 'Meta Ads',
+          data: [1.8, 4, 1.2, 3, 3.5],
+          borderColor: PURPLE,
+          backgroundColor: 'rgba(139,92,246,0.2)',
+          borderWidth: 2.5,
+          pointBackgroundColor: PURPLE,
+          pointRadius: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', font:{size:12}, boxWidth:12, borderRadius:4 } },
+        tooltip: { ...tooltipStyle },
+      },
+      scales: {
+        r: {
+          grid:        { color: '#1a2d45' },
+          angleLines:  { color: '#1a2d45' },
+          ticks:       { color: '#475569', backdropColor: 'transparent', font:{size:10} },
+          pointLabels: { color: '#94a3b8', font:{ size:12, weight:'600' } },
+        },
+      },
+    },
+  });
+</script>
+
+</body>
+</html>
