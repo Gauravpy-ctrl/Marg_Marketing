@@ -24,31 +24,26 @@ exports.generateAnalytics = (data) => {
     0
   );
 
-  const ctr =
-    totalImpressions > 0
-      ? (totalClicks / totalImpressions) * 100
-      : 0;
+  // PLATFORM SPLIT
 
-  const conversionRate =
-    totalClicks > 0
-      ? (totalConversions / totalClicks) * 100
-      : 0;
-
-  const roas =
-    totalSpend > 0
-      ? totalRevenue / totalSpend
-      : 0;
-
-  // PLATFORM BREAKDOWN
   const googleData = data.filter(
-    (row) => row.platform === "Google"
+    (row) =>
+      row.platform &&
+      row.platform.toLowerCase().includes("google")
   );
 
   const metaData = data.filter(
-    (row) => row.platform === "Meta"
+    (row) =>
+      row.platform &&
+      row.platform.toLowerCase().includes("meta")
   );
 
   const googleRevenue = googleData.reduce(
+    (sum, row) => sum + (row.revenue || 0),
+    0
+  );
+
+  const metaRevenue = metaData.reduce(
     (sum, row) => sum + (row.revenue || 0),
     0
   );
@@ -58,15 +53,25 @@ exports.generateAnalytics = (data) => {
     0
   );
 
-  const metaRevenue = metaData.reduce(
-    (sum, row) => sum + (row.revenue || 0),
-    0
-  );
-
   const metaSpend = metaData.reduce(
     (sum, row) => sum + (row.spend || 0),
     0
   );
+
+  const overallCTR =
+    totalImpressions > 0
+      ? (totalClicks / totalImpressions) * 100
+      : 0;
+
+  const overallROAS =
+    totalSpend > 0
+      ? totalRevenue / totalSpend
+      : 0;
+
+  const conversionRate =
+    totalClicks > 0
+      ? (totalConversions / totalClicks) * 100
+      : 0;
 
   return {
     totalSpend,
@@ -74,28 +79,15 @@ exports.generateAnalytics = (data) => {
     totalClicks,
     totalImpressions,
     totalConversions,
-    ctr,
+
+    overallCTR,
+    overallROAS,
     conversionRate,
-    roas,
 
-    platformBreakdown: {
-      Google: {
-        revenue: googleRevenue,
-        spend: googleSpend,
-        roas:
-          googleSpend > 0
-            ? googleRevenue / googleSpend
-            : 0,
-      },
+    googleRevenue,
+    metaRevenue,
 
-      Meta: {
-        revenue: metaRevenue,
-        spend: metaSpend,
-        roas:
-          metaSpend > 0
-            ? metaRevenue / metaSpend
-            : 0,
-      },
-    },
+    googleSpend,
+    metaSpend,
   };
 };

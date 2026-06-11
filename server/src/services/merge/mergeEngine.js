@@ -97,6 +97,7 @@ const mergeDatasets = (googleData, metaData) => {
         "Purchase ROAS",
         "Website purchases conversion value",
         "Revenue",
+        "revenue",
       ])
     ),
 
