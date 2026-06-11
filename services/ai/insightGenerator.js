@@ -1,3 +1,6 @@
+// NOTE: This is a standalone legacy service using the OpenAI SDK directly.
+// The active server (server/src/services/ai/) uses OpenRouter instead.
+// To use this file, set OPENAI_API_KEY in your environment.
 const OpenAI = require("openai");
 
 const client = new OpenAI({
