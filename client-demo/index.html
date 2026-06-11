@@ -273,6 +273,83 @@
 
     .divider { border:none; border-top:1px solid var(--border); margin:36px 0; }
 
+    /* ─── Campaign cards ────────────────────────────────── */
+    .camp-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px;
+    }
+    .camp-card {
+      background: var(--bg-card);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      transition: border-color .2s, transform .15s;
+    }
+    .camp-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+
+    .camp-card-top {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .camp-card-name {
+      font-size: 15px; font-weight: 700; color: var(--text-1);
+      margin-bottom: 10px; line-height: 1.35;
+    }
+    .camp-card-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .plat-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px;
+    }
+    .plat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ROAS gauge */
+    .roas-gauge { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .roas-gauge-label {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-3); margin-bottom: 7px; font-weight: 600;
+    }
+    .roas-gauge-track {
+      height: 7px; background: rgba(255,255,255,.07); border-radius: 99px; overflow: hidden;
+    }
+    .roas-gauge-fill {
+      height: 100%; border-radius: 99px;
+      transition: width .6s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    /* Spend vs Revenue bar */
+    .spend-rev { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+    .spend-rev-label {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-3); margin-bottom: 6px;
+    }
+    .spend-rev-bars { display: flex; flex-direction: column; gap: 5px; }
+    .spend-rev-row { display: flex; align-items: center; gap: 8px; }
+    .spend-rev-row-label { font-size: 10px; color: var(--text-3); width: 48px; flex-shrink: 0; text-align: right; }
+    .spend-rev-track { flex: 1; height: 5px; background: rgba(255,255,255,.07); border-radius: 99px; overflow: hidden; }
+    .spend-rev-fill { height: 100%; border-radius: 99px; }
+
+    /* Metrics grid */
+    .camp-metrics {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      padding: 14px 20px; gap: 12px;
+    }
+    .camp-metric-label { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+    .camp-metric-value { font-size: 16px; font-weight: 700; color: var(--text-1); }
+
+    /* View toggle */
+    .view-toggle {
+      display: inline-flex; gap: 3px; background: #0a1628;
+      border: 1px solid var(--border); border-radius: 10px; padding: 4px;
+    }
+    .view-btn {
+      padding: 6px 14px; border-radius: 7px; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 600; color: var(--text-3); background: transparent;
+      font-family: 'Inter', sans-serif; transition: all .15s;
+    }
+    .view-btn.active { background: #1e293b; color: var(--text-1); }
+
     /* ─── Footer ─────────────────────────────────────────── */
     .footer { text-align:center; padding-top:48px; }
     .footer p { font-size:12px; color:var(--text-3); line-height:1.8; }
@@ -745,37 +822,76 @@
       </div>
     </section>
 
-    <!-- Campaign table -->
+    <!-- Campaign cards / table -->
     <section class="section">
       <div class="card chart-pad">
-        <div class="chart-title">All Campaigns</div>
-        <div style="margin-bottom:16px">
-          <input
-            id="campFilter"
-            type="text"
-            placeholder="Filter by campaign or platform…"
-            oninput="filterTable()"
-            style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:9px 14px;color:white;font-size:13px;width:100%;max-width:380px;outline:none;font-family:inherit"
-          />
-          <span id="campCount" style="color:var(--text-3);font-size:13px;margin-left:14px"></span>
+
+        <!-- toolbar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <input
+              id="campFilter"
+              type="text"
+              placeholder="Filter campaigns…"
+              oninput="filterCamps()"
+              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 14px;color:white;font-size:13px;width:220px;outline:none;font-family:inherit"
+            />
+            <select id="campStatusFilter" onchange="filterCamps()"
+              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 12px;color:#94a3b8;font-size:13px;outline:none;font-family:inherit;cursor:pointer">
+              <option value="">All statuses</option>
+              <option value="top">Top</option>
+              <option value="moderate">Moderate</option>
+              <option value="underperforming">Underperforming</option>
+              <option value="waste">Waste</option>
+            </select>
+            <select id="campPlatFilter" onchange="filterCamps()"
+              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 12px;color:#94a3b8;font-size:13px;outline:none;font-family:inherit;cursor:pointer">
+              <option value="">All platforms</option>
+              <option value="Google Ads">Google Ads</option>
+              <option value="Facebook">Facebook</option>
+              <option value="Instagram">Instagram</option>
+              <option value="Audience Network">Audience Network</option>
+            </select>
+            <span id="campCount" style="color:var(--text-3);font-size:13px"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <select id="campSort" onchange="filterCamps()"
+              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 12px;color:#94a3b8;font-size:13px;outline:none;font-family:inherit;cursor:pointer">
+              <option value="roas">Sort: ROAS</option>
+              <option value="revenue">Sort: Revenue</option>
+              <option value="spend">Sort: Spend</option>
+              <option value="ctr">Sort: CTR</option>
+              <option value="conversions">Sort: Conversions</option>
+            </select>
+            <div class="view-toggle">
+              <button class="view-btn active" id="btnCards" onclick="setView('cards')">Cards</button>
+              <button class="view-btn"        id="btnTable" onclick="setView('table')">Table</button>
+            </div>
+          </div>
         </div>
-        <div class="camp-table-wrap">
-          <table class="camp-table" id="campTable">
+
+        <!-- card grid -->
+        <div id="campCards" class="camp-cards"></div>
+
+        <!-- table (hidden by default) -->
+        <div id="campTableWrap" style="display:none" class="camp-table-wrap">
+          <table class="camp-table">
             <thead>
               <tr>
-                <th onclick="sortTable('name')" style="cursor:pointer">Campaign ↕</th>
-                <th onclick="sortTable('platform')" style="cursor:pointer">Platform ↕</th>
-                <th class="num" onclick="sortTable('spend')" style="cursor:pointer">Spend ↕</th>
-                <th class="num" onclick="sortTable('revenue')" style="cursor:pointer">Revenue ↕</th>
-                <th class="num" onclick="sortTable('roas')" style="cursor:pointer">ROAS ↕</th>
-                <th class="num" onclick="sortTable('ctr')" style="cursor:pointer">CTR ↕</th>
-                <th class="num" onclick="sortTable('conversions')" style="cursor:pointer">Conv ↕</th>
+                <th>Campaign</th>
+                <th>Platform</th>
+                <th class="num">Spend</th>
+                <th class="num">Revenue</th>
+                <th class="num">ROAS</th>
+                <th class="num">CTR</th>
+                <th class="num">Conversions</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody id="campTbody"></tbody>
           </table>
         </div>
+
       </div>
     </section>
 
@@ -1156,50 +1272,157 @@ new Chart(document.getElementById('bottom5Chart'), {
   },
 });
 
-/* ─── Campaign table ─────────────────────────────────── */
-let sortKey = 'roas', sortAsc = false;
+/* ─── Campaign cards + table ─────────────────────────── */
 
-function renderTable(data) {
-  const tbody = document.getElementById('campTbody');
-  document.getElementById('campCount').textContent = data.length + ' / ' + CAMPAIGNS.length + ' campaigns';
-  tbody.innerHTML = data.map(c => {
-    const badge = `<span class="badge badge-${c.status}">${c.status}</span>`;
-    return `<tr>
+const PLATFORM_TAG_STYLE = {
+  'Google Ads':       { bg:'rgba(59,130,246,.15)',  color:'#60a5fa', dot:'#3b82f6' },
+  'Facebook':         { bg:'rgba(139,92,246,.15)',  color:'#c4b5fd', dot:'#8b5cf6' },
+  'Instagram':        { bg:'rgba(236,72,153,.15)',  color:'#f9a8d4', dot:'#ec4899' },
+  'Audience Network': { bg:'rgba(16,185,129,.15)',  color:'#6ee7b7', dot:'#10b981' },
+};
+const STATUS_LABELS = { top:'Top Performer', moderate:'Moderate', underperforming:'Underperforming', waste:'Budget Waste' };
+const MAX_ROAS = 8;
+
+let campView = 'cards';
+
+function setView(v) {
+  campView = v;
+  document.getElementById('btnCards').classList.toggle('active', v === 'cards');
+  document.getElementById('btnTable').classList.toggle('active', v === 'table');
+  document.getElementById('campCards').style.display    = v === 'cards' ? 'grid'  : 'none';
+  document.getElementById('campTableWrap').style.display = v === 'table' ? 'block' : 'none';
+}
+
+function roasBarColor(status) {
+  return STATUS_COLORS[status] || '#60a5fa';
+}
+
+function renderCards(data) {
+  document.getElementById('campCards').innerHTML = data.map(c => {
+    const ps  = PLATFORM_TAG_STYLE[c.platform] || { bg:'rgba(148,163,184,.15)', color:'#94a3b8', dot:'#64748b' };
+    const sc  = STATUS_COLORS[c.status];
+    const sl  = STATUS_LABELS[c.status];
+    const pct = Math.min((c.roas / MAX_ROAS) * 100, 100).toFixed(1);
+    const maxVal = Math.max(c.spend, c.revenue);
+    const spendPct   = maxVal > 0 ? (c.spend   / maxVal * 100).toFixed(1) : 0;
+    const revPct     = maxVal > 0 ? (c.revenue / maxVal * 100).toFixed(1) : 0;
+    const cpc = c.clicks > 0 ? (c.spend / c.clicks) : (c.spend > 0 && c.conversions > 0 ? c.spend / c.conversions : 0);
+
+    return `
+    <div class="camp-card">
+      <!-- name + tags -->
+      <div class="camp-card-top">
+        <div class="camp-card-name">${c.name}</div>
+        <div class="camp-card-tags">
+          <span class="plat-tag" style="background:${ps.bg};color:${ps.color}">
+            <span class="plat-dot" style="background:${ps.dot}"></span>${c.platform}
+          </span>
+          <span class="badge badge-${c.status}">${sl}</span>
+        </div>
+      </div>
+
+      <!-- ROAS gauge -->
+      <div class="roas-gauge">
+        <div class="roas-gauge-label">
+          <span>ROAS</span>
+          <span style="color:${sc};font-weight:700">${c.roas.toFixed(2)}x</span>
+        </div>
+        <div class="roas-gauge-track">
+          <div class="roas-gauge-fill" style="width:${pct}%;background:${sc}"></div>
+        </div>
+      </div>
+
+      <!-- Spend vs Revenue bars -->
+      <div class="spend-rev">
+        <div class="spend-rev-label">
+          <span>Spend</span><span>Revenue</span>
+        </div>
+        <div class="spend-rev-bars">
+          <div class="spend-rev-row">
+            <span class="spend-rev-row-label" style="color:#8b5cf6">${fmt(c.spend)}</span>
+            <div class="spend-rev-track">
+              <div class="spend-rev-fill" style="width:${spendPct}%;background:#8b5cf6"></div>
+            </div>
+          </div>
+          <div class="spend-rev-row">
+            <span class="spend-rev-row-label" style="color:#3b82f6">${fmt(c.revenue)}</span>
+            <div class="spend-rev-track">
+              <div class="spend-rev-fill" style="width:${revPct}%;background:#3b82f6"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics grid -->
+      <div class="camp-metrics">
+        <div>
+          <div class="camp-metric-label">CTR</div>
+          <div class="camp-metric-value">${c.ctr.toFixed(2)}%</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Conversions</div>
+          <div class="camp-metric-value">${c.conversions.toLocaleString()}</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">ROAS</div>
+          <div class="camp-metric-value" style="color:${sc}">${c.roas.toFixed(2)}x</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Spend</div>
+          <div class="camp-metric-value">${fmt(c.spend)}</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Revenue</div>
+          <div class="camp-metric-value">${fmt(c.revenue)}</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Net P&L</div>
+          <div class="camp-metric-value" style="color:${c.revenue >= c.spend ? '#4ade80' : '#f87171'}">${fmt(c.revenue - c.spend)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTableRows(data) {
+  document.getElementById('campTbody').innerHTML = data.map(c =>
+    `<tr>
       <td class="name">${c.name}</td>
       <td>${c.platform}</td>
       <td class="num">${fmt(c.spend)}</td>
       <td class="num">${fmt(c.revenue)}</td>
-      <td class="num">${c.roas.toFixed(2)}x</td>
+      <td class="num" style="color:${STATUS_COLORS[c.status]}">${c.roas.toFixed(2)}x</td>
       <td class="num">${c.ctr.toFixed(2)}%</td>
       <td class="num">${c.conversions.toLocaleString()}</td>
-      <td>${badge}</td>
-    </tr>`;
-  }).join('');
+      <td><span class="badge badge-${c.status}">${c.status}</span></td>
+    </tr>`
+  ).join('');
 }
 
-function getSorted(data) {
-  return [...data].sort((a, b) => {
-    const av = a[sortKey], bv = b[sortKey];
-    return typeof av === 'number'
-      ? sortAsc ? av - bv : bv - av
-      : sortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
-  });
+function getFiltered() {
+  const q      = document.getElementById('campFilter').value.toLowerCase();
+  const status = document.getElementById('campStatusFilter').value;
+  const plat   = document.getElementById('campPlatFilter').value;
+  const sortBy = document.getElementById('campSort').value;
+
+  const filtered = CAMPAIGNS.filter(c =>
+    (!q      || c.name.toLowerCase().includes(q) || c.platform.toLowerCase().includes(q)) &&
+    (!status || c.status   === status) &&
+    (!plat   || c.platform === plat)
+  );
+
+  filtered.sort((a, b) => b[sortBy] - a[sortBy]);
+  return filtered;
 }
 
-function sortTable(key) {
-  if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = false; }
-  filterTable();
+function filterCamps() {
+  const data = getFiltered();
+  document.getElementById('campCount').textContent = data.length + ' / ' + CAMPAIGNS.length + ' campaigns';
+  renderCards(data);
+  renderTableRows(data);
 }
 
-function filterTable() {
-  const q = document.getElementById('campFilter').value.toLowerCase();
-  const filtered = q
-    ? CAMPAIGNS.filter(c => c.name.toLowerCase().includes(q) || c.platform.toLowerCase().includes(q) || c.status.includes(q))
-    : CAMPAIGNS;
-  renderTable(getSorted(filtered));
-}
-
-renderTable(getSorted(CAMPAIGNS));
+filterCamps();
 </script>
 
 </body>
