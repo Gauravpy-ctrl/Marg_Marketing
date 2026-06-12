@@ -1297,158 +1297,129 @@ function roasBarColor(status) {
   return STATUS_COLORS[status] || '#60a5fa';
 }
 
-/* ─── Platform/status config ──────────────────────────── */
-var PLAT_COLOR_MAP = {
-  "Google Ads":       "#3b82f6",
-  "Facebook":         "#8b5cf6",
-  "Instagram":        "#ec4899",
-  "Audience Network": "#10b981"
-};
-var STATUS_ROI_COLOR = {
-  top:             "#4ade80",
-  moderate:        "#fbbf24",
-  underperforming: "#f87171",
-  waste:           "#f87171"
-};
+function renderCards(data) {
+  document.getElementById('campCards').innerHTML = data.map(c => {
+    const ps  = PLATFORM_TAG_STYLE[c.platform] || { bg:'rgba(148,163,184,.15)', color:'#94a3b8', dot:'#64748b' };
+    const sc  = STATUS_COLORS[c.status];
+    const sl  = STATUS_LABELS[c.status];
+    const pct = Math.min((c.roas / MAX_ROAS) * 100, 100).toFixed(1);
+    const maxVal = Math.max(c.spend, c.revenue);
+    const spendPct   = maxVal > 0 ? (c.spend   / maxVal * 100).toFixed(1) : 0;
+    const revPct     = maxVal > 0 ? (c.revenue / maxVal * 100).toFixed(1) : 0;
+    const cpc = c.clicks > 0 ? (c.spend / c.clicks) : (c.spend > 0 && c.conversions > 0 ? c.spend / c.conversions : 0);
 
-function getPlan(c) {
-  if (c.roas >= 5) return "Maximize revenue from this top-performing " + c.platform + " campaign by scaling budget 25-30% and expanding to similar high-intent audience segments.";
-  if (c.roas >= 4) return "Scale this " + c.platform + " campaign aggressively — ROAS of " + c.roas.toFixed(1) + "x demonstrates strong efficiency. Increase budget and broaden reach.";
-  if (c.roas >= 2) return "Optimize " + c.platform + " targeting to push ROAS from " + c.roas.toFixed(1) + "x toward the 4x benchmark. Focus on high-converting segments and pause underperformers.";
-  if (c.roas < 1) return "Pause this " + c.platform + " campaign immediately — ROAS of " + c.roas.toFixed(2) + "x means negative ROI. Restructure targeting and creative before resuming spend.";
-  return "Improve " + c.platform + " campaign efficiency. With ROAS at " + c.roas.toFixed(1) + "x, tighten audience targeting and refresh creatives to drive profitable conversions.";
+    return `
+    <div class="camp-card">
+      <!-- name + tags -->
+      <div class="camp-card-top">
+        <div class="camp-card-name">${c.name}</div>
+        <div class="camp-card-tags">
+          <span class="plat-tag" style="background:${ps.bg};color:${ps.color}">
+            <span class="plat-dot" style="background:${ps.dot}"></span>${c.platform}
+          </span>
+          <span class="badge badge-${c.status}">${sl}</span>
+        </div>
+      </div>
+
+      <!-- ROAS gauge -->
+      <div class="roas-gauge">
+        <div class="roas-gauge-label">
+          <span>ROAS</span>
+          <span style="color:${sc};font-weight:700">${c.roas.toFixed(2)}x</span>
+        </div>
+        <div class="roas-gauge-track">
+          <div class="roas-gauge-fill" style="width:${pct}%;background:${sc}"></div>
+        </div>
+      </div>
+
+      <!-- Spend vs Revenue bars -->
+      <div class="spend-rev">
+        <div class="spend-rev-label">
+          <span>Spend</span><span>Revenue</span>
+        </div>
+        <div class="spend-rev-bars">
+          <div class="spend-rev-row">
+            <span class="spend-rev-row-label" style="color:#8b5cf6">${fmt(c.spend)}</span>
+            <div class="spend-rev-track">
+              <div class="spend-rev-fill" style="width:${spendPct}%;background:#8b5cf6"></div>
+            </div>
+          </div>
+          <div class="spend-rev-row">
+            <span class="spend-rev-row-label" style="color:#3b82f6">${fmt(c.revenue)}</span>
+            <div class="spend-rev-track">
+              <div class="spend-rev-fill" style="width:${revPct}%;background:#3b82f6"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics grid -->
+      <div class="camp-metrics">
+        <div>
+          <div class="camp-metric-label">CTR</div>
+          <div class="camp-metric-value">${c.ctr.toFixed(2)}%</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Conversions</div>
+          <div class="camp-metric-value">${c.conversions.toLocaleString()}</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">ROAS</div>
+          <div class="camp-metric-value" style="color:${sc}">${c.roas.toFixed(2)}x</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Spend</div>
+          <div class="camp-metric-value">${fmt(c.spend)}</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Revenue</div>
+          <div class="camp-metric-value">${fmt(c.revenue)}</div>
+        </div>
+        <div>
+          <div class="camp-metric-label">Net P&L</div>
+          <div class="camp-metric-value" style="color:${c.revenue >= c.spend ? '#4ade80' : '#f87171'}">${fmt(c.revenue - c.spend)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-function getProcedure(c) {
-  var p = c.platform;
-  if (p === "Google Ads") {
-    if (c.roas >= 4) return "Raise bid caps on top keywords by 20%. Expand to exact-match variations. Layer RLSA audiences for returning visitors to capture high-intent repeat traffic.";
-    if (c.roas >= 2) return "Add negative keywords to cut wasted spend. Switch underperforming ad groups to target-CPA bidding. Test 2-3 new headline variants in responsive search ads.";
-    return "Halt broad-match campaigns. Focus budget on exact-match converters only. Improve landing page relevance and Quality Scores above 7/10.";
-  }
-  if (p === "Facebook" || p === "Instagram") {
-    if (c.roas >= 4) return "Duplicate winning ad sets with scaled budget. Build 1% lookalike audiences from purchasers. Test short-form video creatives alongside top static image ads.";
-    if (c.roas >= 2) return "Narrow audiences by tightening age bands and interest clusters. Refresh creatives older than 3 weeks. Reduce frequency below 3 to prevent audience fatigue.";
-    return "Pause all active ad sets. Audit audience overlap across campaigns. Rebuild from a retargeting-first approach using warm audiences only.";
-  }
-  if (c.roas >= 4) return "Increase budget allocation by 20-30%. Expand placements to additional channels. Track attribution across the full funnel to protect ROAS at scale.";
-  return "Audit placement performance and pause bottom-20% ad sets. Reallocate budget to top-performing creatives. Review attribution window settings.";
+function renderTableRows(data) {
+  document.getElementById('campTbody').innerHTML = data.map(c =>
+    `<tr>
+      <td class="name">${c.name}</td>
+      <td>${c.platform}</td>
+      <td class="num">${fmt(c.spend)}</td>
+      <td class="num">${fmt(c.revenue)}</td>
+      <td class="num" style="color:${STATUS_COLORS[c.status]}">${c.roas.toFixed(2)}x</td>
+      <td class="num">${c.ctr.toFixed(2)}%</td>
+      <td class="num">${c.conversions.toLocaleString()}</td>
+      <td><span class="badge badge-${c.status}">${c.status}</span></td>
+    </tr>`
+  ).join('');
 }
 
-function buildCard(c, idx) {
-  var pc  = PLAT_COLOR_MAP[c.platform] || "#64748b";
-  var rc  = STATUS_ROI_COLOR[c.status] || "#f87171";
-  var roi = Math.round((c.roas - 1) * 100);
-  var id  = "cc-" + idx;
-  var bid = id + "-body";
-  var cid = id + "-chev";
+function getFiltered() {
+  const q      = document.getElementById('campFilter').value.toLowerCase();
+  const status = document.getElementById('campStatusFilter').value;
+  const plat   = document.getElementById('campPlatFilter').value;
+  const sortBy = document.getElementById('campSort').value;
 
-  var plan      = getPlan(c);
-  var procedure = getProcedure(c);
+  const filtered = CAMPAIGNS.filter(c =>
+    (!q      || c.name.toLowerCase().includes(q) || c.platform.toLowerCase().includes(q)) &&
+    (!status || c.status   === status) &&
+    (!plat   || c.platform === plat)
+  );
 
-  var metrics = [
-    ["ROAS",      c.roas.toFixed(2) + "x",           rc],
-    ["CTR",       c.ctr.toFixed(2) + "%",             "#f1f5f9"],
-    ["Conv Rate", c.conversionRate.toFixed(2) + "%",  "#f1f5f9"],
-    ["CPC",       fmt(c.cpc),                         "#f1f5f9"]
-  ].map(function(m) {
-    return "<div style='margin-right:4px'>" +
-      "<div style='font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px'>" + m[0] + "</div>" +
-      "<div style='font-size:14px;font-weight:700;color:" + m[2] + "'>" + m[1] + "</div>" +
-      "</div>";
-  }).join("");
-
-  return [
-    "<div id=\"" + id + "\" style='background:#080f1c;border-radius:12px;border:1px solid #1e293b;margin-bottom:8px;overflow:hidden;transition:border-color .2s'>",
-
-    // Collapsed header — onclick on the row via data attributes
-    "<div onclick=\"toggleCampCard(this)\" data-bid=\"" + bid + "\" data-border=\"" + rc + "\"",
-    " style='padding:16px 20px;cursor:pointer;display:flex;align-items:center;gap:16px;flex-wrap:wrap;user-select:none'>",
-
-    // Name + meta
-    "<div style='flex:1;min-width:160px'>",
-    "<div style='font-weight:700;font-size:14px;color:#f1f5f9;margin-bottom:6px'>" + c.name + "</div>",
-    "<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap'>",
-    "<span style='background:" + pc + "18;color:" + pc + ";border:1px solid " + pc + "30;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600'>" + c.platform + "</span>",
-    "<span style='color:#64748b;font-size:12px'>&#8857; " + c.conversions.toLocaleString() + " Leads</span>",
-    "<span style='color:#64748b;font-size:12px'>$ " + fmt(c.spend) + " Budget</span>",
-    "</div></div>",
-
-    // ROI
-    "<div style='text-align:right;flex-shrink:0'>",
-    "<div style='font-size:20px;font-weight:800;color:" + rc + ";line-height:1'>" + roi + "%</div>",
-    "<div style='font-size:11px;color:#475569;margin-top:3px'>ROI (Target: 200%)</div>",
-    "</div>",
-
-    // Chevron
-    "<div id=\"" + cid + "\" style='color:#475569;font-size:11px;flex-shrink:0;transition:transform .2s'>&#9660;</div>",
-    "</div>", // end collapsed row
-
-    // Expanded body
-    "<div id=\"" + bid + "\" style='display:none;border-top:1px solid #1e293b;padding:20px 22px'>",
-    "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px 32px'>",
-
-    // Plan
-    "<div>",
-    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px'>Plan</div>",
-    "<p style='font-size:13px;color:#94a3b8;line-height:1.75;margin:0'>" + plan + "</p>",
-    "</div>",
-
-    // Procedure
-    "<div>",
-    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px'>Procedure</div>",
-    "<p style='font-size:13px;color:#94a3b8;line-height:1.75;margin:0'>" + procedure + "</p>",
-    "</div>",
-
-    // Platforms
-    "<div>",
-    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px'>Platforms</div>",
-    "<span style='background:" + pc + "18;color:" + pc + ";border:1px solid " + pc + "30;border-radius:6px;padding:4px 11px;font-size:12px;font-weight:600'>" + c.platform + "</span>",
-    "</div>",
-
-    // Team Involved (shows performance metrics)
-    "<div>",
-    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px'>Team Involved</div>",
-    "<div style='display:flex;gap:18px;flex-wrap:wrap'>" + metrics + "</div>",
-    "</div>",
-
-    "</div></div>", // end grid + body
-    "</div>"  // end card
-  ].join("\n");
-}
-
-function toggleCampCard(headerEl) {
-  var bid    = headerEl.getAttribute("data-bid");
-  var border = headerEl.getAttribute("data-border");
-  var card   = headerEl.parentElement;
-  var body   = document.getElementById(bid);
-  var cid    = bid.replace("-body", "-chev");
-  var chev   = document.getElementById(cid);
-  var open   = body.style.display !== "none";
-  body.style.display     = open ? "none" : "block";
-  if (chev) chev.style.transform = open ? "" : "rotate(180deg)";
-  card.style.borderColor = open ? "#1e293b" : border;
+  filtered.sort((a, b) => b[sortBy] - a[sortBy]);
+  return filtered;
 }
 
 function filterCamps() {
-  var q        = document.getElementById("campFilter").value.toLowerCase();
-  var statusF  = document.getElementById("campStatusFilter").value;
-  var platF    = document.getElementById("campPlatFilter").value;
-  var sortBy   = document.getElementById("campSort").value;
-
-  var data = CAMPAIGNS.filter(function(c) {
-    return (!q      || c.name.toLowerCase().indexOf(q) !== -1 || c.platform.toLowerCase().indexOf(q) !== -1)
-        && (!statusF || c.status   === statusF)
-        && (!platF   || c.platform === platF);
-  }).sort(function(a, b) { return b[sortBy] - a[sortBy]; });
-
-  var wrap = document.getElementById("campCards");
-  wrap.innerHTML = data.length
-    ? data.map(function(c, i) { return buildCard(c, i); }).join("")
-    : "<p style='color:#475569;padding:20px 0;font-size:14px'>No campaigns match this filter.</p>";
-
-  var ct = document.getElementById("campCount");
-  if (ct) ct.textContent = data.length + " / " + CAMPAIGNS.length + " campaigns";
+  const data = getFiltered();
+  document.getElementById('campCount').textContent = data.length + ' / ' + CAMPAIGNS.length + ' campaigns';
+  renderCards(data);
+  renderTableRows(data);
 }
 
 filterCamps();
