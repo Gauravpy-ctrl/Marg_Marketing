@@ -1,3 +1,9 @@
+/**
+ * @dead-code  Not called anywhere in the active pipeline.
+ * Field names here (campaign_name, cpc, roas, device) do not match the
+ * UnifiedRow schema output by the cleaners (campaign, no cpc/roas/device).
+ * Retained for reference only — do not add new callers.
+ */
 exports.mapToUnifiedSchema = (
   cleanedData
 ) => {

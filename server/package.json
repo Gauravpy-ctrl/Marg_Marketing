@@ -1,8 +1,8 @@
 {
-  "name": "server",
+  "name": "@marketing-ai/core",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Reusable marketing analytics pipeline — Google Ads + Meta Ads processing, KPI generation, platform/campaign breakdowns, AI insights.",
+  "main": "src/core/index.js",
   "scripts": {
     "dev": "nodemon src/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"

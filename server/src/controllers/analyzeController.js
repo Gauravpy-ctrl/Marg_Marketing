@@ -1,83 +1,49 @@
 const fs  = require("fs");
 const csv = require("csv-parser");
 
-const { cleanGoogleAdsData } = require("../services/cleaners/googleAdsCleaner");
-const { cleanMetaAdsData    } = require("../services/cleaners/metaAdsCleaner");
-const { mergeDatasets        } = require("../services/merge/mergeEngine");
-const { generateAnalytics    } = require("../services/analytics/analyticsEngine");
-const { generateAIInsights   } = require("../services/ai/aiInsightGenerator");
+const { analyzeMarketingData } = require("../core");
 
-// ─── Platform registry ────────────────────────────────────────────────────────
-// To add a new platform (Phase 6): create its cleaner, then add one entry here.
-// Nothing else in the pipeline needs to change.
-const PLATFORM_REGISTRY = [
-  { fileKey: "googleFile", cleaner: cleanGoogleAdsData, required: true  },
-  { fileKey: "metaFile",   cleaner: cleanMetaAdsData,   required: true  },
-  // { fileKey: "twitterFile",  cleaner: cleanTwitterAdsData,  required: false },
-  // { fileKey: "linkedinFile", cleaner: cleanLinkedInAdsData, required: false },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── CSV helper ───────────────────────────────────────────────────────────────
 
 const readCSV = (filePath) =>
   new Promise((resolve, reject) => {
     const rows = [];
     fs.createReadStream(filePath)
       .pipe(csv())
-      .on("data", (row) => rows.push(row))
-      .on("end",  ()    => resolve(rows))
+      .on("data",  (row) => rows.push(row))
+      .on("end",   ()    => resolve(rows))
       .on("error", reject);
   });
 
 // ─── Controller ───────────────────────────────────────────────────────────────
+// Pure HTTP adapter: parse uploaded CSVs → call pipeline → return JSON.
+// All platform registry logic, cleaning, merging, and AI live in core/index.js.
 
 exports.analyzeController = async (req, res) => {
   try {
-    console.log("FILES:", req.files);
-
-    // Validate required files
-    const missing = PLATFORM_REGISTRY
-      .filter((p) => p.required && !req.files?.[p.fileKey])
-      .map((p) => p.fileKey);
-
-    if (missing.length > 0) {
-      return res.status(400).json({
-        error: `Missing required files: ${missing.join(", ")}`,
-      });
+    // Build sources map from uploaded files.
+    // Convention: "googleFile" → "googleData", "metaFile" → "metaData", etc.
+    const sources = {};
+    for (const [fileKey, files] of Object.entries(req.files || {})) {
+      sources[fileKey.replace("File", "Data")] = await readCSV(files[0].path);
     }
 
-    // Read, clean, and collect all platform datasets in registry order
-    const cleanedDatasets = await Promise.all(
-      PLATFORM_REGISTRY
-        .filter((p) => req.files?.[p.fileKey])
-        .map(async ({ fileKey, cleaner }) => {
-          const path = req.files[fileKey][0].path;
-          console.log(`Reading ${fileKey}:`, path);
-          const rows = await readCSV(path);
-          console.log(`${fileKey} rows:`, rows.length);
-          return cleaner(rows);
-        })
-    );
+    const result = await analyzeMarketingData(sources);
 
-    // Merge all cleaned datasets into one unified array
-    // mergeDatasets accepts (googleData, metaData) — pass them positionally
-    // for backward compatibility; future platforms are appended via concat.
-    const [cleanedGoogle, cleanedMeta, ...extras] = cleanedDatasets;
-    const mergedData = [
-      ...mergeDatasets(cleanedGoogle, cleanedMeta),
-      ...extras.flat(),
-    ];
-
-    // Analytics (includes platformBreakdown and campaignBreakdown)
-    const kpis = generateAnalytics(mergedData);
-
-    // AI insights (uses enriched prompt with platform + campaign context)
-    const insights = await generateAIInsights(mergedData, kpis);
-
-    return res.json({ success: true, kpis, insights });
+    // Preserve existing response shape so the client needs no changes:
+    // { success, kpis: { ...analytics, platformBreakdown, campaignBreakdown }, insights }
+    return res.json({
+      success: true,
+      kpis: {
+        ...result.analytics,
+        platformBreakdown: result.platformBreakdown,
+        campaignBreakdown: result.campaignBreakdown,
+      },
+      insights: result.insights,
+    });
 
   } catch (error) {
     console.error("analyzeController error:", error);
-    return res.status(500).json({ error: error.message });
+    return res.status(400).json({ error: error.message });
   }
 };

@@ -1,3 +1,9 @@
+/**
+ * @deprecated Use generateAnalytics() from services/analytics/analyticsEngine.js instead.
+ * analyticsEngine is a strict superset: it returns the same totals plus
+ * platformBreakdown and campaignBreakdown. This file is retained only
+ * because testFullPipeline.js references it directly.
+ */
 exports.calculateKPIs = (data) => {
   const totalSpend = data.reduce(
     (sum, row) => sum + row.spend,
