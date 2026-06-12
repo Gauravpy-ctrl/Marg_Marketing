@@ -1,0 +1,13 @@
+# Server-only files — not part of the core module
+src/app.js
+src/controllers/
+src/routes/
+src/testAI.js
+src/testFullPipeline.js
+testAI.js
+
+# Dev artefacts
+src/uploads/
+uploads/
+*.tgz
+.env
