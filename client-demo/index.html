@@ -822,76 +822,49 @@
       </div>
     </section>
 
-    <!-- Campaign cards / table -->
+    <!-- Top Performing -->
+    <section class="section">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80"></div>
+        <h3 style="font-size:18px;font-weight:700;color:white;margin:0">Top Performing Campaigns</h3>
+      </div>
+      <p style="font-size:13px;color:#64748b;margin-bottom:16px">These campaigns exceed 4x ROAS — scale budget to maximise revenue.</p>
+      <div id="topCampCards"></div>
+    </section>
+
+    <!-- Underperforming -->
+    <section class="section">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#f87171;box-shadow:0 0 8px #f87171"></div>
+        <h3 style="font-size:18px;font-weight:700;color:white;margin:0">Underperforming Campaigns</h3>
+      </div>
+      <p style="font-size:13px;color:#64748b;margin-bottom:16px">These campaigns need immediate attention — pause or restructure to stop budget waste.</p>
+      <div id="underCampCards"></div>
+    </section>
+
+    <!-- All campaigns -->
     <section class="section">
       <div class="card chart-pad">
-
-        <!-- toolbar -->
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <input
-              id="campFilter"
-              type="text"
-              placeholder="Filter campaigns…"
-              oninput="filterCamps()"
-              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 14px;color:white;font-size:13px;width:220px;outline:none;font-family:inherit"
-            />
-            <select id="campStatusFilter" onchange="filterCamps()"
-              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 12px;color:#94a3b8;font-size:13px;outline:none;font-family:inherit;cursor:pointer">
-              <option value="">All statuses</option>
-              <option value="top">Top</option>
-              <option value="moderate">Moderate</option>
-              <option value="underperforming">Underperforming</option>
-              <option value="waste">Waste</option>
-            </select>
-            <select id="campPlatFilter" onchange="filterCamps()"
-              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 12px;color:#94a3b8;font-size:13px;outline:none;font-family:inherit;cursor:pointer">
-              <option value="">All platforms</option>
-              <option value="Google Ads">Google Ads</option>
-              <option value="Facebook">Facebook</option>
-              <option value="Instagram">Instagram</option>
-              <option value="Audience Network">Audience Network</option>
-            </select>
-            <span id="campCount" style="color:var(--text-3);font-size:13px"></span>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:white;margin-bottom:2px">All Campaigns</div>
+            <div id="campCount" style="font-size:13px;color:#64748b"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <input id="campFilter" type="text" placeholder="Filter..." oninput="filterCamps()"
+              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:7px 12px;color:white;font-size:13px;width:150px;outline:none;font-family:inherit"/>
+            <div id="campFilterTabs" style="display:flex;gap:3px;background:#080f1c;padding:4px;border-radius:10px;border:1px solid #1e293b"></div>
             <select id="campSort" onchange="filterCamps()"
-              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 12px;color:#94a3b8;font-size:13px;outline:none;font-family:inherit;cursor:pointer">
+              style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:7px 12px;color:#94a3b8;font-size:12px;outline:none;font-family:inherit;cursor:pointer">
               <option value="roas">Sort: ROAS</option>
               <option value="revenue">Sort: Revenue</option>
               <option value="spend">Sort: Spend</option>
               <option value="ctr">Sort: CTR</option>
               <option value="conversions">Sort: Conversions</option>
             </select>
-            <div class="view-toggle">
-              <button class="view-btn active" id="btnCards" onclick="setView('cards')">Cards</button>
-              <button class="view-btn"        id="btnTable" onclick="setView('table')">Table</button>
-            </div>
           </div>
         </div>
-
-        <!-- card grid -->
-        <div id="campCards" class="camp-cards"></div>
-
-        <!-- table (hidden by default) -->
-        <div id="campTableWrap" style="display:none" class="camp-table-wrap">
-          <table class="camp-table">
-            <thead>
-              <tr>
-                <th>Campaign</th>
-                <th>Platform</th>
-                <th class="num">Spend</th>
-                <th class="num">Revenue</th>
-                <th class="num">ROAS</th>
-                <th class="num">CTR</th>
-                <th class="num">Conversions</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="campTbody"></tbody>
-          </table>
-        </div>
-
+        <div id="campCards"></div>
       </div>
     </section>
 
@@ -1272,156 +1245,266 @@ new Chart(document.getElementById('bottom5Chart'), {
   },
 });
 
-/* ─── Campaign cards + table ─────────────────────────── */
+/* ─── Campaign expandable cards ─────────────────────────── */
 
-const PLATFORM_TAG_STYLE = {
-  'Google Ads':       { bg:'rgba(59,130,246,.15)',  color:'#60a5fa', dot:'#3b82f6' },
-  'Facebook':         { bg:'rgba(139,92,246,.15)',  color:'#c4b5fd', dot:'#8b5cf6' },
-  'Instagram':        { bg:'rgba(236,72,153,.15)',  color:'#f9a8d4', dot:'#ec4899' },
-  'Audience Network': { bg:'rgba(16,185,129,.15)',  color:'#6ee7b7', dot:'#10b981' },
+var TOTAL_SPEND = CAMPAIGNS.reduce(function(s, c){ return s + c.spend; }, 0);
+
+var STATUS_CFG = {
+  top:             { label:"Scale",   color:"#4ade80", bg:"#052e16", border:"#166534" },
+  moderate:        { label:"Monitor", color:"#fbbf24", bg:"#1c1500", border:"#92400e" },
+  underperforming: { label:"Pause",   color:"#f87171", bg:"#200a0a", border:"#991b1b" },
+  waste:           { label:"Pause",   color:"#f87171", bg:"#200a0a", border:"#991b1b" }
 };
-const STATUS_LABELS = { top:'Top Performer', moderate:'Moderate', underperforming:'Underperforming', waste:'Budget Waste' };
-const MAX_ROAS = 8;
 
-let campView = 'cards';
+var PLAT_CFG = {
+  "Google Ads":       { color:"#3b82f6", desc:"Intent-based search and display advertising"       },
+  "Facebook":         { color:"#8b5cf6", desc:"Interest and demographic-based social advertising" },
+  "Instagram":        { color:"#ec4899", desc:"Visual and story-driven social advertising"        },
+  "Audience Network": { color:"#10b981", desc:"Extended reach across Meta's partner apps"        }
+};
 
-function setView(v) {
-  campView = v;
-  document.getElementById('btnCards').classList.toggle('active', v === 'cards');
-  document.getElementById('btnTable').classList.toggle('active', v === 'table');
-  document.getElementById('campCards').style.display    = v === 'cards' ? 'grid'  : 'none';
-  document.getElementById('campTableWrap').style.display = v === 'table' ? 'block' : 'none';
+function getInsight(c) {
+  if (c.roas >= 5)                        return "Exceptional ROAS — top revenue driver. Scale budget aggressively to capture more market share.";
+  if (c.roas >= 4 && c.ctr >= 3)         return "Strong ROAS and CTR — peak efficiency. Increase budget 20–30% while monitoring ROAS stability.";
+  if (c.roas >= 4)                        return "Strong ROAS above 4x — consider scaling budget to grow revenue volume.";
+  if (c.ctr >= 2 && c.conversions < 150) return "Good CTR but weak conversion rate — A/B test landing pages to close the gap.";
+  if (c.roas >= 2 && c.ctr < 1.5)       return "Moderate ROAS with low CTR — improve audience targeting and creative quality.";
+  if (c.roas >= 2)                        return "Moderate performance — tighten audience segmentation to push ROAS above 4x.";
+  if (c.spend > 3000 && c.conversions < 50) return "High spend with low conversions — pause and restructure targeting and bidding strategy.";
+  if (c.roas < 1)                         return "Budget waste — spending more than it generates. Immediate pause recommended.";
+  return "Underperforming — review audience, creative, and landing page before committing more budget.";
 }
 
-function roasBarColor(status) {
-  return STATUS_COLORS[status] || '#60a5fa';
+function getStrengths(c) {
+  var s = [];
+  if (c.roas >= 4) s.push("Exceptional ROAS of " + c.roas.toFixed(2) + "x — above 4x benchmark");
+  else if (c.roas >= 2) s.push("Profitable ROAS of " + c.roas.toFixed(2) + "x — above break-even");
+  if (c.ctr >= 3) s.push("High CTR of " + c.ctr.toFixed(2) + "% — strong creative resonance");
+  if (c.conversions >= 200) s.push("Strong volume: " + c.conversions.toLocaleString() + " conversions");
+  if (!s.length) s.push("No significant strengths at current performance levels");
+  return s;
 }
 
-function renderCards(data) {
-  document.getElementById('campCards').innerHTML = data.map(c => {
-    const ps  = PLATFORM_TAG_STYLE[c.platform] || { bg:'rgba(148,163,184,.15)', color:'#94a3b8', dot:'#64748b' };
-    const sc  = STATUS_COLORS[c.status];
-    const sl  = STATUS_LABELS[c.status];
-    const pct = Math.min((c.roas / MAX_ROAS) * 100, 100).toFixed(1);
-    const maxVal = Math.max(c.spend, c.revenue);
-    const spendPct   = maxVal > 0 ? (c.spend   / maxVal * 100).toFixed(1) : 0;
-    const revPct     = maxVal > 0 ? (c.revenue / maxVal * 100).toFixed(1) : 0;
-    const cpc = c.clicks > 0 ? (c.spend / c.clicks) : (c.spend > 0 && c.conversions > 0 ? c.spend / c.conversions : 0);
-
-    return `
-    <div class="camp-card">
-      <!-- name + tags -->
-      <div class="camp-card-top">
-        <div class="camp-card-name">${c.name}</div>
-        <div class="camp-card-tags">
-          <span class="plat-tag" style="background:${ps.bg};color:${ps.color}">
-            <span class="plat-dot" style="background:${ps.dot}"></span>${c.platform}
-          </span>
-          <span class="badge badge-${c.status}">${sl}</span>
-        </div>
-      </div>
-
-      <!-- ROAS gauge -->
-      <div class="roas-gauge">
-        <div class="roas-gauge-label">
-          <span>ROAS</span>
-          <span style="color:${sc};font-weight:700">${c.roas.toFixed(2)}x</span>
-        </div>
-        <div class="roas-gauge-track">
-          <div class="roas-gauge-fill" style="width:${pct}%;background:${sc}"></div>
-        </div>
-      </div>
-
-      <!-- Spend vs Revenue bars -->
-      <div class="spend-rev">
-        <div class="spend-rev-label">
-          <span>Spend</span><span>Revenue</span>
-        </div>
-        <div class="spend-rev-bars">
-          <div class="spend-rev-row">
-            <span class="spend-rev-row-label" style="color:#8b5cf6">${fmt(c.spend)}</span>
-            <div class="spend-rev-track">
-              <div class="spend-rev-fill" style="width:${spendPct}%;background:#8b5cf6"></div>
-            </div>
-          </div>
-          <div class="spend-rev-row">
-            <span class="spend-rev-row-label" style="color:#3b82f6">${fmt(c.revenue)}</span>
-            <div class="spend-rev-track">
-              <div class="spend-rev-fill" style="width:${revPct}%;background:#3b82f6"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Metrics grid -->
-      <div class="camp-metrics">
-        <div>
-          <div class="camp-metric-label">CTR</div>
-          <div class="camp-metric-value">${c.ctr.toFixed(2)}%</div>
-        </div>
-        <div>
-          <div class="camp-metric-label">Conversions</div>
-          <div class="camp-metric-value">${c.conversions.toLocaleString()}</div>
-        </div>
-        <div>
-          <div class="camp-metric-label">ROAS</div>
-          <div class="camp-metric-value" style="color:${sc}">${c.roas.toFixed(2)}x</div>
-        </div>
-        <div>
-          <div class="camp-metric-label">Spend</div>
-          <div class="camp-metric-value">${fmt(c.spend)}</div>
-        </div>
-        <div>
-          <div class="camp-metric-label">Revenue</div>
-          <div class="camp-metric-value">${fmt(c.revenue)}</div>
-        </div>
-        <div>
-          <div class="camp-metric-label">Net P&L</div>
-          <div class="camp-metric-value" style="color:${c.revenue >= c.spend ? '#4ade80' : '#f87171'}">${fmt(c.revenue - c.spend)}</div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+function getOpps(c) {
+  var o = [];
+  if (c.roas < 1) o.push("ROAS below 1x — generating a net loss. Structural review required.");
+  else if (c.roas < 2) o.push("ROAS below 2x — review bidding strategy and audience quality.");
+  if (c.ctr < 1) o.push("CTR below 1% — improve ad creative and tighten audience targeting.");
+  if (c.cpc > 3) o.push("High CPC — add negative keywords or narrow audience targeting.");
+  if (c.conversions < 30 && c.status !== "waste") o.push("Low conversion volume — expand audience or increase bid aggressiveness.");
+  if (!o.length) o.push("Performance is solid — maintain efficiency while scaling volume.");
+  return o;
 }
 
-function renderTableRows(data) {
-  document.getElementById('campTbody').innerHTML = data.map(c =>
-    `<tr>
-      <td class="name">${c.name}</td>
-      <td>${c.platform}</td>
-      <td class="num">${fmt(c.spend)}</td>
-      <td class="num">${fmt(c.revenue)}</td>
-      <td class="num" style="color:${STATUS_COLORS[c.status]}">${c.roas.toFixed(2)}x</td>
-      <td class="num">${c.ctr.toFixed(2)}%</td>
-      <td class="num">${c.conversions.toLocaleString()}</td>
-      <td><span class="badge badge-${c.status}">${c.status}</span></td>
-    </tr>`
-  ).join('');
+function buildCard(c, rank, ns) {
+  var id  = "cc-" + ns + "-" + rank;
+  var bid = id + "-body";
+  var cid = id + "-chev";
+  var st  = STATUS_CFG[c.status] || STATUS_CFG.underperforming;
+  var pc  = PLAT_CFG[c.platform] || { color:"#64748b", desc:"Advertising platform" };
+  var pct = Math.min((c.roas / 8) * 100, 100).toFixed(1);
+  var spendPct = TOTAL_SPEND > 0 ? ((c.spend / TOTAL_SPEND) * 100).toFixed(1) : "0.0";
+  var pl = c.revenue - c.spend;
+  var insightTxt = getInsight(c);
+  var strArr = getStrengths(c);
+  var oppArr = getOpps(c);
+
+  var budgetAction, budgetColor, budgetDesc;
+  if (c.status === "top")             { budgetAction = "Increase 20–30%"; budgetColor = "#4ade80"; budgetDesc = "Proven efficiency — scaling is recommended."; }
+  else if (c.status === "moderate")   { budgetAction = "Hold Current";    budgetColor = "#fbbf24"; budgetDesc = "Monitor before committing more budget."; }
+  else if (c.status === "underperforming") { budgetAction = "Reduce 30%"; budgetColor = "#f87171"; budgetDesc = "Reduce spend until optimisations show improvement."; }
+  else                                { budgetAction = "Pause Now";       budgetColor = "#f87171"; budgetDesc = "Halt spend — negative ROI detected."; }
+
+  var inlineMetrics = [
+    ["Spend", fmt(c.spend)], ["Revenue", fmt(c.revenue)],
+    ["ROAS", c.roas.toFixed(2) + "x"], ["CTR", c.ctr.toFixed(2) + "%"],
+    ["Conv", c.conversions.toLocaleString()],
+  ].map(function(m) {
+    return "<div style='text-align:center;min-width:54px'>" +
+      "<div style='font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.04em'>" + m[0] + "</div>" +
+      "<div style='font-size:13px;font-weight:700;color:#f1f5f9'>" + m[1] + "</div></div>";
+  }).join("");
+
+  var metricBoxes = [
+    ["ROAS", c.roas.toFixed(2) + "x", st.color],
+    ["CTR",  c.ctr.toFixed(2) + "%",  "#f1f5f9"],
+    ["CPC",  fmt(c.cpc),               "#f1f5f9"],
+    ["Conv Rate", c.conversionRate.toFixed(2) + "%", "#f1f5f9"],
+    ["Conversions", c.conversions.toLocaleString(), "#f1f5f9"],
+    ["Net P&L", fmt(pl), pl >= 0 ? "#4ade80" : "#f87171"],
+  ].map(function(m) {
+    return "<div style='background:#080f1c;border-radius:10px;padding:12px 14px'>" +
+      "<div style='font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px'>" + m[0] + "</div>" +
+      "<div style='font-size:17px;font-weight:800;color:" + m[2] + "'>" + m[1] + "</div></div>";
+  }).join("");
+
+  var strengthsHTML = strArr.map(function(s) {
+    return "<div style='display:flex;gap:8px;margin-bottom:8px;font-size:13px;color:#94a3b8;line-height:1.6'>" +
+      "<span style='color:#4ade80;flex-shrink:0;margin-top:2px'>&#x2713;</span>" + s + "</div>";
+  }).join("");
+
+  var oppsHTML = oppArr.map(function(o) {
+    return "<div style='display:flex;gap:8px;margin-bottom:8px;font-size:13px;color:#94a3b8;line-height:1.6'>" +
+      "<span style='color:#fbbf24;flex-shrink:0;margin-top:2px'>&rarr;</span>" + o + "</div>";
+  }).join("");
+
+  var headerOnclick = "onclick=\"toggleCard(this)\"";
+  var headerData    = "data-bid=\"" + bid + "\" data-border=\"" + st.border + "\"";
+
+  var parts = [
+    "<div id=\"" + id + "\" style='background:#0f172a;border-radius:16px;border:1px solid #1e293b;overflow:hidden;margin-bottom:10px;transition:border-color .2s'>",
+
+    // Collapsed row
+    "<div " + headerOnclick + " " + headerData + " style='padding:14px 20px;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;user-select:none'>",
+    "<span style='font-size:12px;font-weight:700;color:#334155;min-width:22px'>#" + rank + "</span>",
+    "<span style='width:8px;height:8px;border-radius:50%;background:" + st.color + ";flex-shrink:0;box-shadow:0 0 6px " + st.color + "88'></span>",
+    "<span style='font-size:14px;font-weight:700;color:#f1f5f9;flex:1;min-width:130px'>" + c.name + "</span>",
+    "<span style='background:" + pc.color + "18;color:" + pc.color + ";border:1px solid " + pc.color + "30;border-radius:7px;padding:3px 10px;font-size:11px;font-weight:600;flex-shrink:0'>" + c.platform + "</span>",
+    inlineMetrics,
+    "<span style='background:" + st.bg + ";color:" + st.color + ";border:1px solid " + st.border + ";border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;flex-shrink:0'>" + st.label + "</span>",
+    "<span id=\"" + cid + "\" style='color:#334155;font-size:11px;flex-shrink:0;transition:transform .2s'>&#9660;</span>",
+    "</div>",
+
+    // Expanded body
+    "<div id=\"" + bid + "\" style='display:none'>",
+
+    // Summary
+    "<div style='padding:18px 22px;border-top:1px solid #1e293b'>",
+    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px'>Campaign Summary</div>",
+    "<p style='font-size:14px;color:#94a3b8;line-height:1.8;margin:0'>" +
+      "<strong style='color:#f1f5f9'>" + c.name + "</strong> is a " +
+      "<strong style='color:" + pc.color + "'>" + c.platform + "</strong> campaign spending " +
+      "<strong style='color:#f1f5f9'>" + fmt(c.spend) + "</strong> and generating " +
+      "<strong style='color:#f1f5f9'>" + fmt(c.revenue) + "</strong> in revenue — " +
+      "ROAS <strong style='color:" + st.color + "'>" + c.roas.toFixed(2) + "x</strong>. " +
+      "Delivered <strong style='color:#f1f5f9'>" + c.conversions.toLocaleString() + "</strong> conversions at " +
+      "<strong style='color:#f1f5f9'>" + c.ctr.toFixed(2) + "%</strong> CTR. " +
+      "Recommendation: <strong style='color:" + st.color + "'>" + st.label + "</strong>.</p>",
+    "</div>",
+
+    // Metrics
+    "<div style='padding:18px 22px;border-top:1px solid #1e293b'>",
+    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px'>Performance Metrics</div>",
+    "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:9px;margin-bottom:14px'>" + metricBoxes + "</div>",
+    "<div style='font-size:11px;color:#475569;display:flex;justify-content:space-between;margin-bottom:5px'><span>ROAS Performance</span><span style='color:" + st.color + ";font-weight:700'>" + c.roas.toFixed(2) + "x / 8x</span></div>",
+    "<div style='height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden'><div style='height:100%;width:" + pct + "%;background:" + st.color + ";border-radius:99px'></div></div>",
+    "</div>",
+
+    // AI Recommendation
+    "<div style='padding:18px 22px;border-top:1px solid #1e293b;background:rgba(59,130,246,.04)'>",
+    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px'>AI Recommendation</div>",
+    "<div style='display:flex;gap:14px;align-items:flex-start'>",
+    "<div style='width:32px;height:32px;border-radius:9px;flex-shrink:0;background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.2);display:flex;align-items:center;justify-content:center;font-size:15px;color:#60a5fa'>&#10022;</div>",
+    "<p style='font-size:14px;color:#93c5fd;line-height:1.8;margin:0'>" + insightTxt + "</p>",
+    "</div></div>",
+
+    // Budget
+    "<div style='padding:18px 22px;border-top:1px solid #1e293b'>",
+    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px'>Budget Allocation</div>",
+    "<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px'>",
+    "<div style='background:#080f1c;border-radius:10px;padding:12px 14px;flex:1;min-width:100px'><div style='font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px'>Portfolio Share</div><div style='font-size:18px;font-weight:800;color:#f1f5f9'>" + spendPct + "%</div></div>",
+    "<div style='background:#080f1c;border-radius:10px;padding:12px 14px;flex:2;min-width:150px'><div style='font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px'>Recommended Action</div><div style='font-size:16px;font-weight:700;color:" + budgetColor + "'>" + budgetAction + "</div></div>",
+    "</div>",
+    "<p style='font-size:13px;color:#64748b;line-height:1.65;margin:0'>" + budgetDesc + "</p>",
+    "</div>",
+
+    // Strengths + Opportunities
+    "<div style='padding:18px 22px;border-top:1px solid #1e293b;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px'>",
+    "<div><div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px'>Key Strengths</div>" + strengthsHTML + "</div>",
+    "<div><div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px'>Improvement Opportunities</div>" + oppsHTML + "</div>",
+    "</div>",
+
+    // Platform
+    "<div style='padding:16px 22px;border-top:1px solid #1e293b'>",
+    "<div style='font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px'>Platform Information</div>",
+    "<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap'>",
+    "<div style='width:10px;height:10px;border-radius:50%;background:" + pc.color + ";box-shadow:0 0 8px " + pc.color + "'></div>",
+    "<span style='color:" + pc.color + ";font-weight:700;font-size:14px'>" + c.platform + "</span>",
+    "<span style='color:#334155'>&middot;</span>",
+    "<span style='color:#64748b;font-size:13px'>" + pc.desc + "</span>",
+    "</div></div>",
+
+    "</div>", // end body
+    "</div>", // end card
+  ];
+  return parts.join("\n");
 }
 
-function getFiltered() {
-  const q      = document.getElementById('campFilter').value.toLowerCase();
-  const status = document.getElementById('campStatusFilter').value;
-  const plat   = document.getElementById('campPlatFilter').value;
-  const sortBy = document.getElementById('campSort').value;
+// toggleCard uses data attributes from the header element
+function toggleCard(headerEl) {
+  var bodyId      = headerEl.getAttribute("data-bid");
+  var borderColor = headerEl.getAttribute("data-border");
+  var card = headerEl.parentElement;
+  var body = document.getElementById(bodyId);
+  var chev = document.getElementById(bodyId.replace("-body", "-chev"));
+  var open = body.style.display !== "none";
+  body.style.display  = open ? "none" : "block";
+  chev.style.transform = open ? "" : "rotate(180deg)";
+  card.style.borderColor = open ? "#1e293b" : borderColor;
+}
 
-  const filtered = CAMPAIGNS.filter(c =>
-    (!q      || c.name.toLowerCase().includes(q) || c.platform.toLowerCase().includes(q)) &&
-    (!status || c.status   === status) &&
-    (!plat   || c.platform === plat)
-  );
+var campActiveFilter = "all";
 
-  filtered.sort((a, b) => b[sortBy] - a[sortBy]);
-  return filtered;
+// handleTabKey reads data-key from the clicked button element
+function handleTabKey(el) {
+  setCampFilter(el.getAttribute("data-key"));
+}
+
+function initFilterTabs() {
+  var tabs = [
+    { key:"all",             label:"All",             count: CAMPAIGNS.length },
+    { key:"top",             label:"Scale",           count: CAMPAIGNS.filter(function(c){ return c.status === "top"; }).length },
+    { key:"moderate",        label:"Monitor",         count: CAMPAIGNS.filter(function(c){ return c.status === "moderate"; }).length },
+    { key:"underperforming", label:"Underperforming", count: CAMPAIGNS.filter(function(c){ return c.status === "underperforming"; }).length },
+    { key:"waste",           label:"Pause",           count: CAMPAIGNS.filter(function(c){ return c.status === "waste"; }).length },
+  ];
+  var colors = { all:"#60a5fa", top:"#4ade80", moderate:"#fbbf24", underperforming:"#f87171", waste:"#f87171" };
+  document.getElementById("campFilterTabs").innerHTML = tabs.map(function(t) {
+    var active = t.key === "all";
+    return "<button id=\"ft-" + t.key + "\" data-key=\"" + t.key + "\" onclick=\"handleTabKey(this)\"" +
+      " style='padding:5px 12px;border-radius:7px;border:none;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;" +
+      "background:" + (active ? "#1e293b" : "transparent") + ";" +
+      "color:" + (active ? colors[t.key] : "#475569") + ";transition:all .15s'>" +
+      t.label + " (" + t.count + ")</button>";
+  }).join("");
+}
+
+function setCampFilter(key) {
+  campActiveFilter = key;
+  var colors = { all:"#60a5fa", top:"#4ade80", moderate:"#fbbf24", underperforming:"#f87171", waste:"#f87171" };
+  ["all","top","moderate","underperforming","waste"].forEach(function(k) {
+    var el = document.getElementById("ft-" + k);
+    if (!el) return;
+    el.style.background = k === key ? "#1e293b" : "transparent";
+    el.style.color       = k === key ? colors[k]  : "#475569";
+  });
+  filterCamps();
 }
 
 function filterCamps() {
-  const data = getFiltered();
-  document.getElementById('campCount').textContent = data.length + ' / ' + CAMPAIGNS.length + ' campaigns';
-  renderCards(data);
-  renderTableRows(data);
+  var q      = document.getElementById("campFilter").value.toLowerCase();
+  var sortBy = document.getElementById("campSort").value;
+
+  var filtered = CAMPAIGNS.filter(function(c) {
+    return (!q || c.name.toLowerCase().indexOf(q) !== -1 || c.platform.toLowerCase().indexOf(q) !== -1) &&
+           (campActiveFilter === "all" || c.status === campActiveFilter);
+  }).sort(function(a, b) { return b[sortBy] - a[sortBy]; });
+
+  document.getElementById("campCount").textContent = filtered.length + " / " + CAMPAIGNS.length + " campaigns";
+  document.getElementById("campCards").innerHTML = filtered.length
+    ? filtered.map(function(c, i) { return buildCard(c, i + 1, "all"); }).join("")
+    : "<p style='color:#475569;font-size:14px;padding:20px 0'>No campaigns match this filter.</p>";
 }
 
+function initRankedSections() {
+  var top   = CAMPAIGNS.filter(function(c){ return c.status === "top"; });
+  var under = CAMPAIGNS.filter(function(c){ return c.status === "underperforming" || c.status === "waste"; });
+  document.getElementById("topCampCards").innerHTML   = top.map(function(c,i){   return buildCard(c, i+1, "top");   }).join("");
+  document.getElementById("underCampCards").innerHTML = under.map(function(c,i){ return buildCard(c, i+1, "under"); }).join("");
+}
+
+initFilterTabs();
+initRankedSections();
 filterCamps();
 </script>
 
