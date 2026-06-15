@@ -45,6 +45,53 @@ function getAIClient() {
   return _aiClient;
 }
 
+// ─── Internal helpers ────────────────────────────────────────────────────────
+
+// Deterministic short ID from platform + campaign name.
+// Stable across runs; survives column-name changes as long as the name is
+// the same — use as a training-data join key until a real platform ID is
+// available in the source CSV.
+function _stableId(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+  return "cmp_" + Math.abs(h).toString(36);
+}
+
+// Normalize any recognizable date string to ISO 8601 (YYYY-MM-DD).
+// Returns the raw string unchanged if it cannot be parsed, so no data is lost.
+function _isoDate(raw) {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? String(raw) : d.toISOString().slice(0, 10);
+}
+
+// Infer the semantic type of the conversions field from the campaign objective.
+// Resolves the "Results" conflation: purchases ≠ leads ≠ link clicks ≠ video views.
+function _conversionType(objective) {
+  const o = String(objective || "").toLowerCase();
+  if (o.includes("purchase") || o.includes("sale") || o.includes("conversion")) return "purchase";
+  if (o.includes("lead"))                                                        return "lead";
+  if (o.includes("traffic")  || o.includes("link"))                             return "link_click";
+  if (o.includes("video")    || o.includes("view"))                             return "video_view";
+  if (o.includes("app"))                                                         return "app_install";
+  if (o.includes("awareness")|| o.includes("reach"))                            return "brand_awareness";
+  return "unknown";
+}
+
+// Row-level quality score for training-data governance.
+//   1.0 — fully mapped, impressions from actual impressions
+//   0.7 — fully mapped but impressions sourced from Reach (undercounted)
+//   0.5 — revenue unmapped (0 by default); pattern is untrainable for ROAS tasks
+//   0.3 — campaign = "Unknown"; row has no identity for campaign-level learning
+// Filter training datasets: exclude rows with score < 0.7 for fine-tuning.
+function _rowQuality(campaign, revenue, reachSubstituted) {
+  if (campaign === "Unknown")               return 0.3;
+  if (revenue === 0 && reachSubstituted)    return 0.6;
+  if (revenue === 0)                        return 0.5;
+  if (reachSubstituted)                     return 0.7;
+  return 1.0;
+}
+
 // ─── Google Ads cleaner ───────────────────────────────────────────────────────
 
 function cleanGoogleAdsData(rows) {
@@ -56,18 +103,54 @@ function cleanGoogleAdsData(rows) {
       return Number(String(v).replace(/[$,%]/g, "").replace(/,/g, "").trim()) || 0;
     };
 
+    const campaign  = (row["Campaign"] || row["Campaign Name"] || row["Campaign_Name"] || row["campaign"] || "Unknown").trim();
+    const objective = row["Objective"] || row["Campaign Objective"] || "Unknown";
+
+    // Track which source column supplied revenue — required for training-data audits.
+    const revSrc  = row["Revenue"]          ? "revenue"
+                  : row["Conversion Value"]  ? "conversion_value"
+                  : row["Conversions Value"] ? "conversions_value"
+                  : row["Purchase Value"]    ? "purchase_value"
+                  : "unmapped";
+    const revenue = parse(row["Revenue"] || row["Conversion Value"] || row["Conversions Value"] || row["Purchase Value"]);
+
     return {
-      platform:     "Google",
-      sub_platform: "Google Ads",
-      campaign:     row["Campaign"] || row["Campaign Name"] || row["campaign"] || "Unknown",
-      spend:        parse(row["Spend"]       || row["Cost"]            || row["Amount Spent"] || row["Amount spent (USD)"]),
-      revenue:      parse(row["Revenue"]     || row["Conversion Value"]|| row["Conversions Value"] || row["Purchase Value"]),
-      clicks:       parse(row["Clicks"]      || row["Link Clicks"]),
-      impressions:  parse(row["Impressions"]),
-      conversions:  parse(row["Conversions"] || row["Purchases"]       || row["Results"]),
-      ctr:          parse(row["CTR"]),
-      region:       row["Region"] || row["Country"] || "Unknown",
-      date:         row["Date"]   || row["Day"]     || null,
+      // ── Identity ──────────────────────────────────────────────────────────
+      platform:           "Google",
+      sub_platform:       "Google Ads",
+      campaign_id:        _stableId("Google||" + campaign),   // stable join key
+      campaign,
+
+      // ── Spend / Revenue ───────────────────────────────────────────────────
+      spend:              parse(row["Spend"] || row["Cost"] || row["Amount Spent"] || row["Amount spent (USD)"]),
+      revenue,
+      revenue_source:     revSrc,
+      currency:           row["Currency"] || row["Account Currency"] || "USD",
+
+      // ── Traffic ───────────────────────────────────────────────────────────
+      clicks:             parse(row["Clicks"] || row["Link Clicks"]),
+      impressions:        parse(row["Impressions"]),
+      reach:              0,                    // Google Ads does not expose Reach
+      impressions_source: "impressions",
+
+      // ── Conversions ───────────────────────────────────────────────────────
+      // "Key Events" is Google's 2024 rename of "Conversions" in the UI.
+      conversions:        parse(row["Conversions"] || row["Key Events"] || row["Purchases"] || row["Results"]),
+      conversion_type:    _conversionType(objective),
+
+      // ── Rates (source values — analytics engine recomputes from totals) ───
+      ctr_source:         parse(row["CTR"]),    // renamed from ctr; scale not guaranteed
+
+      // ── Dimensions ────────────────────────────────────────────────────────
+      region:             row["Region"] || row["Country"] || row["Location"] || row["City"] || "Unknown",
+      date:               _isoDate(row["Date"] || row["Day"]),
+      objective,
+      property_type:      row["Property_Type"]  || row["Property Type"]  || "Unknown",
+      city_tier:          row["City_Tier"]       || row["City Tier"]      || "Unknown",
+      campaign_status:    row["Campaign_Status"] || row["Campaign Status"]|| "Unknown",
+
+      // ── Training-data quality gate ────────────────────────────────────────
+      row_quality_score:  _rowQuality(campaign, revenue, false),
     };
   });
 }
@@ -92,18 +175,62 @@ function cleanMetaAdsData(rows) {
     else if (raw.includes("audience"))  sub_platform = "Audience Network";
     else                                sub_platform = "Meta";
 
+    const campaign  = (row["Campaign"] || row["Campaign Name"] || row["Campaign_Name"] || row["campaign"] || "Unknown").trim();
+    const objective = row["Objective"] || row["Campaign Objective"] || "Unknown";
+
+    // Website Purchase ROAS is a dimensionless ratio (e.g. 4.21), not a monetary
+    // revenue value. Using it as a revenue fallback would store a ratio in a
+    // monetary field, silently corrupting ROAS calculations for all such rows.
+    const revSrc  = row["Revenue"]          ? "revenue"
+                  : row["Purchase Value"]   ? "purchase_value"
+                  : row["Conversion Value"] ? "conversion_value"
+                  : "unmapped";
+    const revenue = parse(row["Revenue"] || row["Purchase Value"] || row["Conversion Value"]);
+
+    // Keep the Reach fallback for analytics continuity but record which source
+    // was used so training pipelines can filter or weight accordingly.
+    const hasActualImpressions = !!row["Impressions"];
+    const impressions = parse(row["Impressions"] || row["Reach"]);
+    const reach       = parse(row["Reach"]);
+
     return {
-      platform: "Meta",
+      // ── Identity ──────────────────────────────────────────────────────────
+      platform:           "Meta",
       sub_platform,
-      campaign:    row["Campaign"] || row["Campaign Name"] || row["campaign"] || "Unknown",
-      spend:       parse(row["Spend"]       || row["Amount Spent"]  || row["Cost"]            || row["Amount spent (USD)"]),
-      revenue:     parse(row["Revenue"]     || row["Purchase Value"]|| row["Conversion Value"]|| row["Website Purchase ROAS"]),
-      clicks:      parse(row["Clicks"]      || row["Link Clicks"]),
-      impressions: parse(row["Impressions"] || row["Reach"]),
-      conversions: parse(row["Conversions"] || row["Purchases"]     || row["Results"]),
-      ctr:         parse(row["CTR"]         || row["Link CTR"]),
-      region:      row["Region"] || row["Country"] || row["Location"] || "Unknown",
-      date:        row["Date"]   || row["Day"]     || null,
+      campaign_id:        _stableId("Meta||" + campaign),
+      campaign,
+
+      // ── Spend / Revenue ───────────────────────────────────────────────────
+      spend:              parse(row["Spend"] || row["Amount Spent"] || row["Cost"] || row["Amount spent (USD)"]),
+      revenue,
+      revenue_source:     revSrc,
+      currency:           row["Currency"] || row["Account Currency"] || "USD",
+
+      // ── Traffic ───────────────────────────────────────────────────────────
+      clicks:             parse(row["Clicks"] || row["Link Clicks"]),
+      impressions,
+      reach,
+      // "reach" = unique users; "impressions" = total views. When only Reach is
+      // available the impressions figure is understated by the frequency factor.
+      impressions_source: hasActualImpressions ? "impressions" : (reach > 0 ? "reach" : "unmapped"),
+
+      // ── Conversions ───────────────────────────────────────────────────────
+      conversions:        parse(row["Conversions"] || row["Purchases"] || row["Results"]),
+      conversion_type:    _conversionType(objective),
+
+      // ── Rates (source values — analytics engine recomputes from totals) ───
+      ctr_source:         parse(row["CTR"] || row["Link CTR"]),
+
+      // ── Dimensions ────────────────────────────────────────────────────────
+      region:             row["Region"] || row["Country"] || row["Location"] || "Unknown",
+      date:               _isoDate(row["Date"] || row["Day"]),
+      objective,
+      property_type:      row["Property_Type"]  || row["Property Type"]  || "Unknown",
+      city_tier:          row["City_Tier"]       || row["City Tier"]      || "Unknown",
+      campaign_status:    row["Campaign_Status"] || row["Campaign Status"]|| "Unknown",
+
+      // ── Training-data quality gate ────────────────────────────────────────
+      row_quality_score:  _rowQuality(campaign, revenue, !hasActualImpressions && reach > 0),
     };
   });
 }
@@ -115,17 +242,32 @@ function mergeDatasets(...datasets) {
 }
 
 // ─── Campaign breakdown ───────────────────────────────────────────────────────
+// groupBy: array of UnifiedRow field names to group on.
+// Built-in aliases: "platform" resolves to sub_platform.
+// Default ["campaign","platform"] preserves backward-compatible output shape
+// (result objects always carry .name and .platform regardless of groupBy).
 
-function generateCampaignBreakdown(data) {
+function generateCampaignBreakdown(data, groupBy = ["campaign", "platform"]) {
   const map = {};
 
+  const resolve = (row, field) => {
+    if (field === "platform") return (row.sub_platform || row.platform || "Unknown").trim();
+    return String(row[field] || "Unknown").trim();
+  };
+
   data.forEach((row) => {
-    const name     = (row.campaign || "Unknown").trim();
-    const platform = row.sub_platform || row.platform || "Unknown";
-    const key      = `${name}||${platform}`;
+    const vals = groupBy.map(f => resolve(row, f));
+    const key  = vals.join("\x00");
 
     if (!map[key]) {
-      map[key] = { name, platform, spend: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0 };
+      const entry = { spend: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0 };
+      groupBy.forEach((f, i) => {
+        entry[f === "campaign" ? "name" : f] = vals[i];
+      });
+      // Always expose .name and .platform for downstream consumers
+      if (!("name"     in entry)) entry.name     = vals.join(" › ");
+      if (!("platform" in entry)) entry.platform = resolve(row, "platform");
+      map[key] = entry;
     }
 
     const c = map[key];
@@ -157,7 +299,7 @@ function generateCampaignBreakdown(data) {
 
 // ─── Analytics engine ─────────────────────────────────────────────────────────
 
-function generateAnalytics(data) {
+function generateAnalytics(data, options = {}) {
   const totalSpend       = data.reduce((s, r) => s + (r.spend       || 0), 0);
   const totalRevenue     = data.reduce((s, r) => s + (r.revenue     || 0), 0);
   const totalClicks      = data.reduce((s, r) => s + (r.clicks      || 0), 0);
@@ -200,7 +342,7 @@ function generateAnalytics(data) {
   const GOOGLE_KEYS = ["Google Ads", "Google"];
   const META_KEYS   = ["Facebook", "Instagram", "Meta", "Audience Network"];
 
-  const campaignBreakdown = generateCampaignBreakdown(data);
+  const campaignBreakdown = generateCampaignBreakdown(data, options.groupBy);
 
   return {
     totalSpend, totalRevenue, totalClicks, totalImpressions, totalConversions,
@@ -346,7 +488,12 @@ const PLATFORM_REGISTRY = [
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-async function analyzeMarketingData(sources = {}) {
+// options.groupBy — array of UnifiedRow fields to group campaigns by.
+//   Default: ["campaign", "platform"]
+//   Examples: ["campaign", "objective"]
+//             ["campaign", "platform", "property_type"]
+//             ["campaign", "city_tier"]
+async function analyzeMarketingData(sources = {}, options = {}) {
   const missing = PLATFORM_REGISTRY
     .filter((p) => p.required && !sources[p.key]?.length)
     .map((p) => p.key);
@@ -358,7 +505,7 @@ async function analyzeMarketingData(sources = {}) {
     .map((p) => p.cleaner(sources[p.key]));
 
   const merged = mergeDatasets(...cleanedDatasets);
-  const raw    = generateAnalytics(merged);
+  const raw    = generateAnalytics(merged, options);
   const { platformBreakdown, campaignBreakdown, ...analytics } = raw;
   const insights = await generateAIInsights(merged, raw);
 
