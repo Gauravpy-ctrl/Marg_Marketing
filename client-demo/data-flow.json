@@ -1,0 +1,337 @@
+{
+  "pipeline": {
+    "name": "Marketing AI Engine — Data Pipeline",
+    "version": "1.0.0",
+    "description": "End-to-end flow from raw CSV upload through server processing, AI insight generation, and client-side filtering.",
+    "stack": {
+      "client": "Next.js 16 + React 19 + Recharts",
+      "server": "Express 5 + Node.js (CommonJS)",
+      "ai": "OpenRouter → Claude (claude-3.5-sonnet)"
+    },
+    "stages": [
+      {
+        "id": "01",
+        "name": "Data Import",
+        "environment": "Client · Next.js",
+        "nodes": [
+          {
+            "title": "User",
+            "file": "Browser file picker",
+            "description": "Selects two CSV exports — one Google Ads report and one Meta Ads report — via the dashboard upload form.",
+            "input": ["google_ads.csv", "meta_ads.csv"],
+            "output": ["2 × File objects"]
+          },
+          {
+            "title": "UploadForm",
+            "file": "client/app/components/UploadForm.jsx",
+            "description": "Validates file types, builds a FormData object with both files, and submits via fetch.",
+            "input": ["2 × File objects"],
+            "output": ["POST /api/analyze"],
+            "notes": ["multipart/form-data"]
+          },
+          {
+            "title": "page.js",
+            "file": "client/app/page.js",
+            "description": "Main dashboard. Holds results state. Sets loading while waiting, then renders child components on success.",
+            "input": ["API JSON response"],
+            "output": ["rendered dashboard"]
+          }
+        ]
+      },
+      {
+        "id": "02",
+        "name": "API Gateway",
+        "environment": "Server · Express 5",
+        "transport": "HTTP POST · multipart · googleFile + metaFile",
+        "nodes": [
+          {
+            "title": "POST /api/analyze",
+            "file": "server/src/routes/analyzeRoute.js",
+            "description": "Multer middleware writes uploaded files to server/src/uploads/ (gitignored). Route hands req.files to the controller.",
+            "input": ["req.files.googleFile", "req.files.metaFile"],
+            "output": ["passes to controller"]
+          },
+          {
+            "title": "analyzeController",
+            "file": "server/src/controllers/analyzeController.js",
+            "description": "Orchestrates the full pipeline: calls cleaners → merge → analytics → AI, then assembles the final JSON response.",
+            "input": ["CSV file paths"],
+            "output": ["{ success, kpis, insights }"]
+          }
+        ]
+      },
+      {
+        "id": "03",
+        "name": "Data Cleaning",
+        "environment": "Server",
+        "note": "runs in parallel",
+        "transport": "Parsed CSV rows passed to both cleaners in parallel",
+        "nodes": [
+          {
+            "title": "cleanGoogleAdsData()",
+            "file": "server/src/services/cleaners/googleAdsCleaner.js",
+            "description": "Normalises Google Ads CSV column names, casts numeric fields, and stamps every row with a fixed sub_platform.",
+            "input": ["raw CSV rows[]"],
+            "output": ["UnifiedRow[]"],
+            "output_shape": {
+              "platform": "\"Google\"",
+              "sub_platform": "\"Google Ads\"",
+              "campaign": "string",
+              "spend": "number",
+              "revenue": "number",
+              "clicks": "number",
+              "impressions": "number",
+              "conversions": "number"
+            }
+          },
+          {
+            "title": "cleanMetaAdsData()",
+            "file": "server/src/services/cleaners/metaAdsCleaner.js",
+            "description": "Normalises Meta Ads CSV fields and maps publisher_platform to the appropriate sub-platform label.",
+            "input": ["raw CSV rows[]"],
+            "output": ["UnifiedRow[]"],
+            "sub_platform_mapping": {
+              "facebook": "Facebook",
+              "instagram": "Instagram",
+              "audience_network": "Audience Network",
+              "other": "Meta"
+            }
+          }
+        ]
+      },
+      {
+        "id": "04",
+        "name": "Merge & Schema Mapping",
+        "environment": "Server",
+        "transport": "Two UnifiedRow[] arrays merged into one",
+        "nodes": [
+          {
+            "title": "mergeDatasets()",
+            "file": "server/src/services/merge/mergeEngine.js",
+            "description": "Accepts variadic arrays of UnifiedRow and flattens them into a single dataset.",
+            "input": ["...UnifiedRow[][]"],
+            "output": ["UnifiedRow[] (merged)"]
+          },
+          {
+            "title": "unifiedSchemaMapper",
+            "file": "server/src/services/schema/unifiedSchemaMapper.js",
+            "description": "Enforces a canonical field set across all rows so downstream analytics can safely read every field without platform-specific guards.",
+            "input": ["merged UnifiedRow[]"],
+            "output": ["schema-normalised rows[]"]
+          }
+        ]
+      },
+      {
+        "id": "05",
+        "name": "Analytics Engines",
+        "environment": "Server",
+        "note": "runs in parallel",
+        "transport": "Single normalised dataset → three analytics engines",
+        "nodes": [
+          {
+            "title": "generateAnalytics()",
+            "file": "server/src/services/analytics/analyticsEngine.js",
+            "status": "primary",
+            "description": "Primary engine. Computes totals, blended rates, per-platform breakdown, and per-campaign breakdown in one pass.",
+            "input": ["UnifiedRow[]"],
+            "output": ["full KPI object"],
+            "output_keys": [
+              "totalSpend", "totalRevenue", "totalClicks", "totalImpressions",
+              "totalConversions", "overallCTR", "overallROAS", "conversionRate",
+              "googleRevenue", "metaRevenue", "googleSpend", "metaSpend",
+              "platformBreakdown", "campaignBreakdown"
+            ]
+          },
+          {
+            "title": "calculateKPIs()",
+            "file": "server/src/services/analytics/kpiEngine.js",
+            "status": "deprecated",
+            "description": "Legacy KPI aggregator. Returns simple totals only. Superseded by analyticsEngine.js.",
+            "input": ["UnifiedRow[]"],
+            "output": ["basic totals only"],
+            "output_keys": [
+              "total_spend", "total_revenue", "total_clicks",
+              "total_impressions", "total_conversions"
+            ]
+          },
+          {
+            "title": "generateCampaignBreakdown()",
+            "file": "server/src/services/analytics/campaignEngine.js",
+            "description": "Groups rows by campaign name, computes per-campaign ROAS/CTR/CPC, and assigns a performance status tag.",
+            "input": ["UnifiedRow[]"],
+            "output": ["CampaignMetric[]"],
+            "status_thresholds": {
+              "top": "ROAS >= 4.0",
+              "moderate": "ROAS >= 2.0",
+              "underperforming": "ROAS >= 1.0",
+              "waste": "ROAS < 1.0"
+            }
+          }
+        ]
+      },
+      {
+        "id": "06",
+        "name": "AI Insight Generation",
+        "environment": "Server + External API",
+        "transport": "KPI object + merged dataset → AI service",
+        "nodes": [
+          {
+            "title": "generateAIInsights()",
+            "file": "server/src/services/ai/aiInsightGenerator.js",
+            "description": "Builds a structured prompt from KPI totals and campaign data, then calls the OpenRouter client. Falls back to hardcoded insights if the API is unavailable.",
+            "input": ["UnifiedRow[]", "KPIObject"],
+            "output": ["Promise<string> (markdown)"],
+            "notes": ["~2–5 s latency", "fallback to hardcoded insights on API failure"]
+          },
+          {
+            "title": "openRouterClient",
+            "file": "server/src/services/ai/openRouterClient.js",
+            "description": "Wraps the OpenRouter REST API. Reads OPENROUTER_API_KEY from server/.env, sends a chat completion request, returns the assistant message text.",
+            "input": ["prompt string"],
+            "output": ["insight string"],
+            "env_vars": ["OPENROUTER_API_KEY"]
+          },
+          {
+            "title": "OpenRouter → Claude",
+            "file": "api.openrouter.ai/api/v1/chat/completions",
+            "model": "claude-3.5-sonnet",
+            "description": "Generates a multi-section strategic report: executive summary, platform comparison, campaign intelligence, budget waste, risk detection.",
+            "input": ["chat completion request"],
+            "output": ["markdown insights"]
+          }
+        ]
+      },
+      {
+        "id": "07",
+        "name": "API Response",
+        "environment": "Server → Client",
+        "transport": "JSON response sent back to client",
+        "response_shape": {
+          "success": "boolean",
+          "kpis": {
+            "totalSpend": "number",
+            "totalRevenue": "number",
+            "totalClicks": "number",
+            "totalImpressions": "number",
+            "totalConversions": "number",
+            "overallCTR": "number",
+            "overallROAS": "number",
+            "conversionRate": "number",
+            "googleRevenue": "number",
+            "metaRevenue": "number",
+            "googleSpend": "number",
+            "metaSpend": "number",
+            "platformBreakdown": {
+              "[platformName]": {
+                "spend": "number",
+                "revenue": "number",
+                "clicks": "number",
+                "impressions": "number",
+                "conversions": "number",
+                "roas": "number",
+                "ctr": "number",
+                "cpc": "number",
+                "conversionRate": "number"
+              }
+            },
+            "campaignBreakdown": [
+              {
+                "name": "string",
+                "platform": "string",
+                "spend": "number",
+                "revenue": "number",
+                "clicks": "number",
+                "impressions": "number",
+                "conversions": "number",
+                "roas": "number",
+                "ctr": "number",
+                "cpc": "number",
+                "conversionRate": "number",
+                "status": "top | moderate | underperforming | waste"
+              }
+            ]
+          },
+          "insights": "string (markdown)"
+        }
+      },
+      {
+        "id": "08",
+        "name": "Client Rendering",
+        "environment": "Client · Next.js + React 19",
+        "transport": "page.js stores response in React state → child components render",
+        "nodes": [
+          {
+            "title": "KPIcards",
+            "file": "client/app/components/KPIcards.js",
+            "description": "Renders the 8 summary metric cards: Total Spend, Revenue, Clicks, Impressions, Conversions, CTR, ROAS, Conversion Rate.",
+            "input": ["kpis object"],
+            "output": ["8 KPI cards"]
+          },
+          {
+            "title": "AdvancedCharts",
+            "file": "client/app/components/AdvancedCharts.jsx",
+            "description": "Recharts visualisations: Revenue vs Spend bar, Platform pie, Conversion funnel, CTR vs Conversion scatter, Revenue trend area, Platform radar.",
+            "input": ["kpis", "campaignBreakdown"],
+            "output": ["6 interactive charts"]
+          },
+          {
+            "title": "AIInsights",
+            "file": "client/app/components/AIInsights.jsx",
+            "description": "Renders the insights markdown string with headings and bullet points.",
+            "input": ["insights string"],
+            "output": ["formatted AI report"]
+          }
+        ]
+      },
+      {
+        "id": "09",
+        "name": "Interactive Filtering",
+        "environment": "Client-side · No API call",
+        "status": "new",
+        "transport": "Client-side only — no extra API call",
+        "state": {
+          "selectedCampaign": "string (default: \"all\")",
+          "selectedPlatform": "string (default: \"all\")"
+        },
+        "filter_logic": {
+          "campaign_options": "[...new Set(campaignBreakdown.map(c => c.name))]",
+          "platform_options": "Object.keys(kpis.platformBreakdown)",
+          "compose": "AND — both filters applied simultaneously",
+          "reset_trigger": "useEffect on [results] — resets to 'all' on new upload"
+        },
+        "filteredKpis_derivation": {
+          "pattern": "IIFE — recomputes on every render, no useMemo",
+          "rationale": "campaignBreakdown is tiny (≤~10 entries), IIFE is sufficient",
+          "fallback": "returns full kpis if no campaigns match the active filters",
+          "recomputed_fields": [
+            "totalSpend", "totalRevenue", "totalClicks", "totalImpressions",
+            "totalConversions", "overallCTR", "overallROAS", "conversionRate",
+            "googleRevenue", "metaRevenue", "googleSpend", "metaSpend",
+            "platformBreakdown (rebuilt from filtered campaigns)",
+            "campaignBreakdown (filtered subset)"
+          ]
+        },
+        "filter_responsive": [
+          "8 KPI cards",
+          "Platform KPI cards (per-platform breakdown)",
+          "Revenue vs Spend bar chart",
+          "Platform pie chart",
+          "Conversion funnel chart",
+          "Executive Summary (ROAS, conversion rate, best platform)"
+        ],
+        "not_filter_responsive": [
+          "AIInsights text — regenerating AI per filter change would be expensive",
+          "Scatter chart — uses hardcoded sample data",
+          "Radar chart — uses hardcoded sample data",
+          "Area trend chart — uses hardcoded sample data"
+        ],
+        "platform_colors": {
+          "Google Ads": "#3b82f6",
+          "Facebook": "#8b5cf6",
+          "Instagram": "#ec4899",
+          "Audience Network": "#10b981"
+        }
+      }
+    ]
+  }
+}
