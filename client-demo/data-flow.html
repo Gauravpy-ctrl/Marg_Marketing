@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Flow — Marketing AI Engine</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background:#05091a;color:#e2e8f0;font-size:14px;line-height:1.5;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    /* ── Page ─────────────────────────────────────────────── */
+    .page{max-width:1160px;margin:0 auto;padding:52px 32px 80px}
+
+    /* ── Header ───────────────────────────────────────────── */
+    .hd{margin-bottom:52px}
+    .hd-badge{
+      display:inline-flex;align-items:center;gap:7px;
+      background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.28);
+      border-radius:99px;padding:5px 14px;margin-bottom:18px;
+    }
+    .hd-badge .dot{width:7px;height:7px;border-radius:50%;background:#3b82f6;box-shadow:0 0 8px #3b82f6;animation:pulse 2s ease infinite}
+    .hd-badge span{color:#60a5fa;font-size:11px;font-weight:700;letter-spacing:.1em}
+    .hd h1{font-size:clamp(28px,4vw,46px);font-weight:800;letter-spacing:-.02em;line-height:1.1;
+      background:linear-gradient(135deg,#f1f5f9,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hd p{color:#64748b;font-size:16px;margin-top:10px;max-width:560px}
+
+    /* ── Legend ───────────────────────────────────────────── */
+    .legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:44px}
+    .leg{display:inline-flex;align-items:center;gap:7px;background:#0a1628;border:1px solid #1e2d45;
+      border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#94a3b8}
+    .leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+    /* ── Pipeline ─────────────────────────────────────────── */
+    .pipeline{display:flex;flex-direction:column;gap:0}
+
+    /* ── Stage block ──────────────────────────────────────── */
+    .stage{border-radius:18px;overflow:hidden;margin-bottom:0}
+    .stage-hd{
+      display:flex;align-items:center;gap:12px;
+      padding:12px 22px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    }
+    .stage-num{
+      width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:800;flex-shrink:0;background:rgba(255,255,255,.1);color:#fff;
+    }
+    .stage-name{flex:1;color:#f1f5f9}
+    .stage-env{font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;letter-spacing:.06em}
+    .env-client  {background:rgba(59,130,246,.18);color:#93c5fd}
+    .env-server  {background:rgba(139,92,246,.18);color:#c4b5fd}
+    .env-external{background:rgba(168,85,247,.18);color:#e9d5ff}
+    .env-new     {background:rgba(249,115,22,.22);color:#fdba74}
+
+    .stage-body{padding:20px 22px 22px;background:rgba(13,21,37,.6)}
+
+    /* ── Nodes row ────────────────────────────────────────── */
+    .nodes-row{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+    .nodes-row.parallel{gap:14px;flex-wrap:wrap}
+    .nodes-row.parallel .node{flex:1;min-width:200px}
+
+    /* ── Node card ────────────────────────────────────────── */
+    .node{
+      background:#0d1525;border:1px solid #1e2d45;border-radius:14px;
+      padding:18px 20px;flex:1;min-width:180px;
+      transition:border-color .2s,transform .15s,box-shadow .2s;
+      position:relative;overflow:hidden;
+    }
+    .node:hover{border-color:#2d4a6e;transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.4)}
+    .node-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+    .node-icon{font-size:22px;flex-shrink:0;line-height:1}
+    .node-title{font-size:15px;font-weight:700;color:#f1f5f9;line-height:1.2}
+    .node-file{font-size:11px;color:#475569;font-family:"SF Mono",Monaco,"Cascadia Code",monospace;margin-bottom:8px;word-break:break-all}
+    .node-desc{font-size:13px;color:#94a3b8;line-height:1.6;margin-bottom:12px}
+    .node-tags{display:flex;flex-wrap:wrap;gap:6px}
+    .tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.04em}
+    .tag-in  {background:rgba(59,130,246,.14);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+    .tag-out {background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.2)}
+    .tag-note{background:rgba(245,158,11,.1); color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+    .tag-dep {background:rgba(100,116,139,.12);color:#64748b;border:1px solid rgba(100,116,139,.2)}
+
+    /* Node accent bar */
+    .node::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+    .node.c-blue::before  {background:#3b82f6}
+    .node.c-purple::before{background:#8b5cf6}
+    .node.c-cyan::before  {background:#06b6d4}
+    .node.c-teal::before  {background:#14b8a6}
+    .node.c-green::before {background:#22c55e}
+    .node.c-violet::before{background:#a855f7}
+    .node.c-sky::before   {background:#38bdf8}
+    .node.c-orange::before{background:#f97316}
+    .node.c-pink::before  {background:#ec4899}
+
+    /* ── Inline arrow ─────────────────────────────────────── */
+    .arrow-h{display:flex;align-items:center;padding:0 6px;flex-shrink:0;align-self:center;color:#1e3a5f;font-size:18px}
+
+    /* ── Vertical connector ───────────────────────────────── */
+    .connector{display:flex;flex-direction:column;align-items:center;padding:4px 0}
+    .conn-line{width:2px;height:36px;background:#1e3a5f;position:relative;overflow:hidden;border-radius:2px}
+    .conn-line::after{
+      content:'';position:absolute;left:0;right:0;height:60%;
+      background:linear-gradient(to bottom,transparent,var(--c,#3b82f6),transparent);
+      animation:flow 1.8s ease-in-out infinite;
+    }
+    .conn-label{
+      font-size:10px;color:#334155;font-weight:600;letter-spacing:.05em;
+      background:#0a1525;padding:2px 10px;border-radius:6px;margin:2px 0;
+      white-space:nowrap;border:1px solid #1e2d45;
+    }
+    .conn-arrow{color:#1e3a5f;font-size:14px;margin-top:-2px}
+
+    /* ── Stage colors ─────────────────────────────────────── */
+    .stage.s-input  .stage-hd{background:rgba(59,130,246,.1); border-bottom:1px solid rgba(59,130,246,.15)}
+    .stage.s-api    .stage-hd{background:rgba(139,92,246,.1); border-bottom:1px solid rgba(139,92,246,.15)}
+    .stage.s-clean  .stage-hd{background:rgba(6,182,212,.1);  border-bottom:1px solid rgba(6,182,212,.15)}
+    .stage.s-merge  .stage-hd{background:rgba(20,184,166,.1); border-bottom:1px solid rgba(20,184,166,.15)}
+    .stage.s-analy  .stage-hd{background:rgba(34,197,94,.1);  border-bottom:1px solid rgba(34,197,94,.15)}
+    .stage.s-ai     .stage-hd{background:rgba(168,85,247,.1); border-bottom:1px solid rgba(168,85,247,.15)}
+    .stage.s-resp   .stage-hd{background:rgba(245,158,11,.1); border-bottom:1px solid rgba(245,158,11,.15)}
+    .stage.s-render .stage-hd{background:rgba(56,189,248,.1); border-bottom:1px solid rgba(56,189,248,.15)}
+    .stage.s-filter .stage-hd{background:rgba(249,115,22,.1); border-bottom:1px solid rgba(249,115,22,.15)}
+
+    .stage.s-input  .stage-num{background:rgba(59,130,246,.25);color:#93c5fd}
+    .stage.s-api    .stage-num{background:rgba(139,92,246,.25);color:#c4b5fd}
+    .stage.s-clean  .stage-num{background:rgba(6,182,212,.25); color:#67e8f9}
+    .stage.s-merge  .stage-num{background:rgba(20,184,166,.25);color:#5eead4}
+    .stage.s-analy  .stage-num{background:rgba(34,197,94,.25); color:#86efac}
+    .stage.s-ai     .stage-num{background:rgba(168,85,247,.25);color:#e9d5ff}
+    .stage.s-resp   .stage-num{background:rgba(245,158,11,.25);color:#fde68a}
+    .stage.s-render .stage-num{background:rgba(56,189,248,.25);color:#bae6fd}
+    .stage.s-filter .stage-num{background:rgba(249,115,22,.25);color:#fed7aa}
+
+    /* ── Response shape card ─────────────────────────────── */
+    .resp-card{
+      background:#050e1e;border:1px solid #1e2d45;border-radius:12px;
+      padding:18px 20px;font-family:"SF Mono",Monaco,"Cascadia Code",monospace;
+      font-size:12px;line-height:1.8;color:#7dd3fc;white-space:pre;overflow-x:auto;
+    }
+    .resp-card .k{color:#94a3b8}
+    .resp-card .v{color:#34d399}
+    .resp-card .c{color:#475569;font-style:italic}
+
+    /* ── Code block ──────────────────────────────────────── */
+    .code{font-family:"SF Mono",Monaco,"Cascadia Code",monospace;font-size:11px;line-height:1.75;color:#7dd3fc;white-space:pre;overflow-x:auto}
+    .code .key{color:#94a3b8}
+    .code .val{color:#6ee7b7}
+    .code .str{color:#fca5a5}
+    .code .cmt{color:#374151;font-style:italic}
+
+    /* ── NEW badge ────────────────────────────────────────── */
+    .new-badge{
+      display:inline-flex;align-items:center;
+      background:rgba(249,115,22,.22);color:#fb923c;
+      border:1px solid rgba(249,115,22,.35);border-radius:6px;
+      font-size:10px;font-weight:800;padding:2px 8px;letter-spacing:.06em;
+      margin-left:8px;vertical-align:middle;
+    }
+
+    /* ── Animations ───────────────────────────────────────── */
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    @keyframes flow{0%{top:-60%}100%{top:120%}}
+
+    /* ── Footer ───────────────────────────────────────────── */
+    .footer{text-align:center;margin-top:56px;padding-top:32px;border-top:1px solid #0d1a2d;font-size:12px;color:#334155}
+
+    /* ── Responsive ───────────────────────────────────────── */
+    @media(max-width:700px){
+      .nodes-row{flex-direction:column}
+      .arrow-h{transform:rotate(90deg);padding:4px 0;align-self:center}
+      .conn-label{white-space:normal;text-align:center;max-width:260px}
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="hd">
+    <div class="hd-badge"><span class="dot"></span><span>ARCHITECTURE · DATA FLOW</span></div>
+    <h1>Marketing AI Engine<br>Data Pipeline</h1>
+    <p>End-to-end flow from raw CSV upload through server processing, AI insight generation, and client-side filtering.</p>
+  </header>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="leg"><span class="leg-dot" style="background:#3b82f6"></span>Client (Next.js)</div>
+    <div class="leg"><span class="leg-dot" style="background:#8b5cf6"></span>Server (Express)</div>
+    <div class="leg"><span class="leg-dot" style="background:#a855f7"></span>External API</div>
+    <div class="leg"><span class="leg-dot" style="background:#f97316"></span>New Feature</div>
+    <div class="leg"><span class="leg-dot" style="background:#64748b"></span>Deprecated</div>
+  </div>
+
+  <!-- ══════════════ PIPELINE ══════════════ -->
+  <div class="pipeline">
+
+    <!-- ─── STAGE 1: DATA IMPORT ─────────────────────── -->
+    <div class="stage s-input">
+      <div class="stage-hd">
+        <div class="stage-num">01</div>
+        <span class="stage-name">Data Import</span>
+        <span class="stage-env env-client">Client · Next.js</span>
+      </div>
+      <div class="stage-body">
+        <div class="nodes-row">
+
+          <div class="node c-blue">
+            <div class="node-top">
+              <div class="node-icon">👤</div>
+              <div>
+                <div class="node-title">User</div>
+                <div class="node-file">Browser file picker</div>
+              </div>
+            </div>
+            <div class="node-desc">Selects two CSV exports — one Google Ads report and one Meta Ads report — via the dashboard upload form.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: google_ads.csv</span>
+              <span class="tag tag-in">IN: meta_ads.csv</span>
+            </div>
+          </div>
+
+          <div class="arrow-h">→</div>
+
+          <div class="node c-blue">
+            <div class="node-top">
+              <div class="node-icon">📤</div>
+              <div>
+                <div class="node-title">UploadForm</div>
+                <div class="node-file">client/app/components/UploadForm.jsx</div>
+              </div>
+            </div>
+            <div class="node-desc">Validates file types, builds a <code style="color:#7dd3fc">FormData</code> object with both files, and submits via <code style="color:#7dd3fc">fetch</code>.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: 2 × File objects</span>
+              <span class="tag tag-out">OUT: POST /api/analyze</span>
+              <span class="tag tag-note">multipart/form-data</span>
+            </div>
+          </div>
+
+          <div class="arrow-h">→</div>
+
+          <div class="node c-blue">
+            <div class="node-top">
+              <div class="node-icon">🖥️</div>
+              <div>
+                <div class="node-title">page.js</div>
+                <div class="node-file">client/app/page.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Main dashboard. Holds <code style="color:#7dd3fc">results</code> state. Sets <code style="color:#7dd3fc">loading</code> while waiting, then renders child components on success.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: API JSON response</span>
+              <span class="tag tag-out">OUT: rendered dashboard</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#8b5cf6"></div>
+      <div class="conn-label">HTTP POST · multipart · googleFile + metaFile</div>
+      <div class="conn-line" style="--c:#8b5cf6"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 2: API GATEWAY ─────────────────────── -->
+    <div class="stage s-api">
+      <div class="stage-hd">
+        <div class="stage-num">02</div>
+        <span class="stage-name">API Gateway</span>
+        <span class="stage-env env-server">Server · Express 5</span>
+      </div>
+      <div class="stage-body">
+        <div class="nodes-row">
+
+          <div class="node c-purple">
+            <div class="node-top">
+              <div class="node-icon">🔌</div>
+              <div>
+                <div class="node-title">POST /api/analyze</div>
+                <div class="node-file">server/src/routes/analyzeRoute.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Multer middleware writes uploaded files to <code style="color:#7dd3fc">server/src/uploads/</code> (gitignored). Route hands <code style="color:#7dd3fc">req.files</code> to the controller.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: req.files.googleFile, req.files.metaFile</span>
+              <span class="tag tag-out">OUT: passes to controller</span>
+            </div>
+          </div>
+
+          <div class="arrow-h">→</div>
+
+          <div class="node c-purple">
+            <div class="node-top">
+              <div class="node-icon">⚙️</div>
+              <div>
+                <div class="node-title">analyzeController</div>
+                <div class="node-file">server/src/controllers/analyzeController.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Orchestrates the full pipeline: calls cleaners → merge → analytics → AI, then assembles the final JSON response.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: CSV file paths</span>
+              <span class="tag tag-out">OUT: { success, kpis, insights }</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#06b6d4"></div>
+      <div class="conn-label">Parsed CSV rows passed to both cleaners in parallel</div>
+      <div class="conn-line" style="--c:#06b6d4"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 3: DATA CLEANING ────────────────────── -->
+    <div class="stage s-clean">
+      <div class="stage-hd">
+        <div class="stage-num">03</div>
+        <span class="stage-name">Data Cleaning <span style="color:#67e8f9;font-weight:500;font-size:11px;margin-left:6px">runs in parallel</span></span>
+        <span class="stage-env env-server">Server</span>
+      </div>
+      <div class="stage-body">
+        <div class="nodes-row parallel">
+
+          <div class="node c-cyan">
+            <div class="node-top">
+              <div class="node-icon">🧹</div>
+              <div>
+                <div class="node-title">cleanGoogleAdsData()</div>
+                <div class="node-file">server/src/services/cleaners/googleAdsCleaner.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Normalises Google Ads CSV column names, casts numeric fields, and stamps every row with a fixed <code style="color:#7dd3fc">sub_platform</code>.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: raw CSV rows[]</span>
+              <span class="tag tag-out">OUT: UnifiedRow[]</span>
+            </div>
+            <div style="margin-top:12px">
+              <div style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Output row shape</div>
+              <div class="code"><span class="key">platform:     </span><span class="str">"Google"</span>
+<span class="key">sub_platform: </span><span class="str">"Google Ads"</span>
+<span class="key">campaign:     </span><span class="val">string</span>
+<span class="key">spend:        </span><span class="val">number</span>
+<span class="key">revenue:      </span><span class="val">number</span>
+<span class="key">clicks:       </span><span class="val">number</span>
+<span class="key">impressions:  </span><span class="val">number</span>
+<span class="key">conversions:  </span><span class="val">number</span></div>
+            </div>
+          </div>
+
+          <div class="node c-pink">
+            <div class="node-top">
+              <div class="node-icon">🧹</div>
+              <div>
+                <div class="node-title">cleanMetaAdsData()</div>
+                <div class="node-file">server/src/services/cleaners/metaAdsCleaner.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Normalises Meta Ads CSV fields and maps <code style="color:#7dd3fc">publisher_platform</code> to the appropriate sub-platform label.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: raw CSV rows[]</span>
+              <span class="tag tag-out">OUT: UnifiedRow[]</span>
+            </div>
+            <div style="margin-top:12px">
+              <div style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">sub_platform mapping</div>
+              <div class="code"><span class="str">"facebook"</span>  → <span class="val">"Facebook"</span>
+<span class="str">"instagram"</span> → <span class="val">"Instagram"</span>
+<span class="str">"audience…"</span> → <span class="val">"Audience Network"</span>
+<span class="str">(other)</span>     → <span class="val">"Meta"</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#14b8a6"></div>
+      <div class="conn-label">Two UnifiedRow[] arrays merged into one</div>
+      <div class="conn-line" style="--c:#14b8a6"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 4: MERGE ────────────────────────────── -->
+    <div class="stage s-merge">
+      <div class="stage-hd">
+        <div class="stage-num">04</div>
+        <span class="stage-name">Merge &amp; Schema Mapping</span>
+        <span class="stage-env env-server">Server</span>
+      </div>
+      <div class="stage-body">
+        <div class="nodes-row">
+
+          <div class="node c-teal">
+            <div class="node-top">
+              <div class="node-icon">🔗</div>
+              <div>
+                <div class="node-title">mergeDatasets()</div>
+                <div class="node-file">server/src/services/merge/mergeEngine.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Accepts variadic arrays of <code style="color:#7dd3fc">UnifiedRow</code> and flattens them into a single dataset.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: ...UnifiedRow[][]</span>
+              <span class="tag tag-out">OUT: UnifiedRow[] (merged)</span>
+            </div>
+          </div>
+
+          <div class="arrow-h">→</div>
+
+          <div class="node c-teal">
+            <div class="node-top">
+              <div class="node-icon">🗺️</div>
+              <div>
+                <div class="node-title">unifiedSchemaMapper</div>
+                <div class="node-file">server/src/services/schema/unifiedSchemaMapper.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Enforces a canonical field set across all rows so downstream analytics can safely read every field without platform-specific guards.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: merged UnifiedRow[]</span>
+              <span class="tag tag-out">OUT: schema-normalised rows[]</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#22c55e"></div>
+      <div class="conn-label">Single normalised dataset → three analytics engines</div>
+      <div class="conn-line" style="--c:#22c55e"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 5: ANALYTICS ────────────────────────── -->
+    <div class="stage s-analy">
+      <div class="stage-hd">
+        <div class="stage-num">05</div>
+        <span class="stage-name">Analytics Engines <span style="color:#86efac;font-weight:500;font-size:11px;margin-left:6px">runs in parallel</span></span>
+        <span class="stage-env env-server">Server</span>
+      </div>
+      <div class="stage-body">
+        <div class="nodes-row parallel">
+
+          <div class="node c-green">
+            <div class="node-top">
+              <div class="node-icon">📊</div>
+              <div>
+                <div class="node-title">generateAnalytics()</div>
+                <div class="node-file">server/src/services/analytics/analyticsEngine.js</div>
+              </div>
+            </div>
+            <div class="node-desc"><strong style="color:#f1f5f9">Primary engine.</strong> Computes totals, blended rates, per-platform breakdown, and per-campaign breakdown in one pass.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: UnifiedRow[]</span>
+              <span class="tag tag-out">OUT: full KPI object</span>
+            </div>
+            <div style="margin-top:12px">
+              <div style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Output keys</div>
+              <div class="code"><span class="key">totalSpend, totalRevenue</span>
+<span class="key">totalClicks, totalImpressions</span>
+<span class="key">totalConversions</span>
+<span class="key">overallCTR, overallROAS</span>
+<span class="key">conversionRate</span>
+<span class="key">googleRevenue, metaRevenue</span>
+<span class="key">platformBreakdown: </span><span class="val">{ [name]: {...} }</span>
+<span class="key">campaignBreakdown: </span><span class="val">CampaignMetric[]</span></div>
+            </div>
+          </div>
+
+          <div class="node c-green" style="opacity:.7">
+            <div class="node-top">
+              <div class="node-icon">📉</div>
+              <div>
+                <div class="node-title">calculateKPIs()</div>
+                <div class="node-file">server/src/services/analytics/kpiEngine.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Legacy KPI aggregator. Returns simple totals only. Superseded by <code style="color:#7dd3fc">analyticsEngine.js</code>.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: UnifiedRow[]</span>
+              <span class="tag tag-dep">⚠ Deprecated</span>
+            </div>
+            <div style="margin-top:12px">
+              <div style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Output keys</div>
+              <div class="code"><span class="key">total_spend, total_revenue</span>
+<span class="key">total_clicks, total_impressions</span>
+<span class="key">total_conversions</span>
+<span class="cmt">// no breakdown data</span></div>
+            </div>
+          </div>
+
+          <div class="node c-green">
+            <div class="node-top">
+              <div class="node-icon">🏷️</div>
+              <div>
+                <div class="node-title">generateCampaignBreakdown()</div>
+                <div class="node-file">server/src/services/analytics/campaignEngine.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Groups rows by campaign name, computes per-campaign ROAS/CTR/CPC, and assigns a performance status tag.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: UnifiedRow[]</span>
+              <span class="tag tag-out">OUT: CampaignMetric[]</span>
+            </div>
+            <div style="margin-top:12px">
+              <div style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Status thresholds</div>
+              <div class="code"><span class="val">top</span>             <span class="key">ROAS ≥ 4.0</span>
+<span class="val">moderate</span>        <span class="key">ROAS ≥ 2.0</span>
+<span class="val">underperforming</span> <span class="key">ROAS ≥ 1.0</span>
+<span class="val">waste</span>           <span class="key">ROAS  &lt; 1.0</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#a855f7"></div>
+      <div class="conn-label">KPI object + merged dataset → AI service</div>
+      <div class="conn-line" style="--c:#a855f7"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 6: AI INSIGHTS ──────────────────────── -->
+    <div class="stage s-ai">
+      <div class="stage-hd">
+        <div class="stage-num">06</div>
+        <span class="stage-name">AI Insight Generation</span>
+        <span class="stage-env env-server">Server</span>
+        <span class="stage-env env-external" style="margin-left:8px">External API</span>
+      </div>
+      <div class="stage-body">
+        <div class="nodes-row">
+
+          <div class="node c-violet">
+            <div class="node-top">
+              <div class="node-icon">🤖</div>
+              <div>
+                <div class="node-title">generateAIInsights()</div>
+                <div class="node-file">server/src/services/ai/aiInsightGenerator.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Builds a structured prompt from KPI totals and campaign data, then calls the OpenRouter client. Falls back to hardcoded insights if the API is unavailable.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: UnifiedRow[], KPIObject</span>
+              <span class="tag tag-out">OUT: Promise&lt;string&gt; (markdown)</span>
+              <span class="tag tag-note">~2–5 s latency</span>
+            </div>
+          </div>
+
+          <div class="arrow-h">→</div>
+
+          <div class="node c-violet">
+            <div class="node-top">
+              <div class="node-icon">🌐</div>
+              <div>
+                <div class="node-title">openRouterClient</div>
+                <div class="node-file">server/src/services/ai/openRouterClient.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Wraps the OpenRouter REST API. Reads <code style="color:#7dd3fc">OPENROUTER_API_KEY</code> from <code style="color:#7dd3fc">server/.env</code>, sends a chat completion request, returns the assistant message text.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: prompt string</span>
+              <span class="tag tag-out">OUT: insight string</span>
+            </div>
+          </div>
+
+          <div class="arrow-h">→</div>
+
+          <div class="node c-violet" style="border-color:rgba(168,85,247,.4)">
+            <div class="node-top">
+              <div class="node-icon">✨</div>
+              <div>
+                <div class="node-title">OpenRouter → Claude</div>
+                <div class="node-file">api.openrouter.ai/api/v1/chat/completions</div>
+              </div>
+            </div>
+            <div class="node-desc">Routes to Claude (claude-3.5-sonnet). Generates a multi-section strategic report: executive summary, platform comparison, campaign intelligence, budget waste, risk detection.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: chat completion request</span>
+              <span class="tag tag-out">OUT: markdown insights</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#f59e0b"></div>
+      <div class="conn-label">JSON response sent back to client</div>
+      <div class="conn-line" style="--c:#f59e0b"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 7: API RESPONSE ─────────────────────── -->
+    <div class="stage s-resp">
+      <div class="stage-hd">
+        <div class="stage-num">07</div>
+        <span class="stage-name">API Response</span>
+        <span class="stage-env env-server">Server → Client</span>
+      </div>
+      <div class="stage-body">
+        <div class="resp-card"><span class="k">{</span>
+  <span class="k">success:</span>   <span class="v">true</span><span class="k">,</span>
+  <span class="k">kpis:</span> <span class="k">{</span>
+    <span class="k">totalSpend:</span>       <span class="v">number</span><span class="k">,</span>
+    <span class="k">totalRevenue:</span>     <span class="v">number</span><span class="k">,</span>
+    <span class="k">totalClicks:</span>      <span class="v">number</span><span class="k">,</span>
+    <span class="k">totalImpressions:</span> <span class="v">number</span><span class="k">,</span>
+    <span class="k">totalConversions:</span> <span class="v">number</span><span class="k">,</span>
+    <span class="k">overallCTR:</span>       <span class="v">number</span><span class="k">,</span>
+    <span class="k">overallROAS:</span>      <span class="v">number</span><span class="k">,</span>
+    <span class="k">conversionRate:</span>   <span class="v">number</span><span class="k">,</span>
+    <span class="k">googleRevenue:</span>    <span class="v">number</span><span class="k">,</span>  <span class="c">// sum of Google Ads sub-platform</span>
+    <span class="k">metaRevenue:</span>      <span class="v">number</span><span class="k">,</span>  <span class="c">// sum of Facebook + Instagram + Audience Network</span>
+    <span class="k">googleSpend:</span>      <span class="v">number</span><span class="k">,</span>
+    <span class="k">metaSpend:</span>        <span class="v">number</span><span class="k">,</span>
+    <span class="k">platformBreakdown:</span> <span class="k">{</span>
+      <span class="k">"Google Ads":</span>       <span class="k">{ spend, revenue, clicks, impressions, conversions, roas, ctr, cpc, conversionRate },</span>
+      <span class="k">"Facebook":</span>         <span class="k">{ ... },</span>
+      <span class="k">"Instagram":</span>        <span class="k">{ ... },</span>
+      <span class="k">"Audience Network":</span> <span class="k">{ ... }</span>
+    <span class="k">},</span>
+    <span class="k">campaignBreakdown:</span> <span class="k">[</span>
+      <span class="k">{ name, platform, spend, revenue, clicks, impressions, conversions,</span>
+        <span class="k">roas, ctr, cpc, conversionRate,</span>
+        <span class="k">status }</span>  <span class="c">// "top" | "moderate" | "underperforming" | "waste"</span>
+    <span class="k">]</span>
+  <span class="k">},</span>
+  <span class="k">insights:</span> <span class="v">string</span>  <span class="c">// markdown-formatted AI strategic report</span>
+<span class="k">}</span></div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#38bdf8"></div>
+      <div class="conn-label">page.js stores response in React state → child components render</div>
+      <div class="conn-line" style="--c:#38bdf8"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 8: CLIENT RENDERING ─────────────────── -->
+    <div class="stage s-render">
+      <div class="stage-hd">
+        <div class="stage-num">08</div>
+        <span class="stage-name">Client Rendering</span>
+        <span class="stage-env env-client">Client · Next.js + React 19</span>
+      </div>
+      <div class="stage-body">
+        <div class="nodes-row parallel">
+
+          <div class="node c-sky">
+            <div class="node-top">
+              <div class="node-icon">📦</div>
+              <div>
+                <div class="node-title">KPIcards</div>
+                <div class="node-file">client/app/components/KPIcards.js</div>
+              </div>
+            </div>
+            <div class="node-desc">Renders the 8 summary metric cards: Total Spend, Revenue, Clicks, Impressions, Conversions, CTR, ROAS, Conversion Rate.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: kpis object</span>
+              <span class="tag tag-out">OUT: 8 KPI cards</span>
+            </div>
+          </div>
+
+          <div class="node c-sky">
+            <div class="node-top">
+              <div class="node-icon">📈</div>
+              <div>
+                <div class="node-title">AdvancedCharts</div>
+                <div class="node-file">client/app/components/AdvancedCharts.jsx</div>
+              </div>
+            </div>
+            <div class="node-desc">Recharts visualisations: Revenue vs Spend bar, Platform pie, Conversion funnel, CTR vs Conversion scatter, Revenue trend area, Platform radar.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: kpis, campaignBreakdown</span>
+              <span class="tag tag-out">OUT: 6 interactive charts</span>
+            </div>
+          </div>
+
+          <div class="node c-sky">
+            <div class="node-top">
+              <div class="node-icon">💡</div>
+              <div>
+                <div class="node-title">AIInsights</div>
+                <div class="node-file">client/app/components/AIInsights.jsx</div>
+              </div>
+            </div>
+            <div class="node-desc">Renders the <code style="color:#7dd3fc">insights</code> markdown string. Uses a markdown renderer to present the strategic report with headings and bullet points.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: insights string</span>
+              <span class="tag tag-out">OUT: formatted AI report</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div class="connector">
+      <div class="conn-line" style="--c:#f97316"></div>
+      <div class="conn-label">Client-side only — no extra API call</div>
+      <div class="conn-line" style="--c:#f97316"></div>
+      <div class="conn-arrow">↓</div>
+    </div>
+
+    <!-- ─── STAGE 9: FILTERING (NEW) ──────────────────── -->
+    <div class="stage s-filter">
+      <div class="stage-hd">
+        <div class="stage-num">09</div>
+        <span class="stage-name">Interactive Filtering <span class="new-badge">NEW</span></span>
+        <span class="stage-env env-new">Client-side · No API call</span>
+      </div>
+      <div class="stage-body">
+
+        <div class="nodes-row" style="margin-bottom:16px">
+
+          <div class="node c-orange">
+            <div class="node-top">
+              <div class="node-icon">🔽</div>
+              <div>
+                <div class="node-title">Campaign Dropdown</div>
+                <div class="node-file">client/app/page.js — selectedCampaign state</div>
+              </div>
+            </div>
+            <div class="node-desc">Options built from <code style="color:#7dd3fc">[...new Set(campaignBreakdown.map(c =&gt; c.name))]</code>. Selecting a campaign filters to that campaign's rows only.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: unique campaign names</span>
+              <span class="tag tag-out">OUT: selectedCampaign string</span>
+            </div>
+          </div>
+
+          <div class="arrow-h">+</div>
+
+          <div class="node c-orange">
+            <div class="node-top">
+              <div class="node-icon">🔽</div>
+              <div>
+                <div class="node-title">Platform Dropdown</div>
+                <div class="node-file">client/app/page.js — selectedPlatform state</div>
+              </div>
+            </div>
+            <div class="node-desc">Options limited to platforms present in <code style="color:#7dd3fc">kpis.platformBreakdown</code>. Both filters compose with AND logic.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: platformBreakdown keys</span>
+              <span class="tag tag-out">OUT: selectedPlatform string</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="text-align:center;color:#475569;font-size:12px;margin:4px 0 12px;font-weight:600;letter-spacing:.05em">↓ &nbsp; IIFE recomputes on every render &nbsp; ↓</div>
+
+        <div class="nodes-row" style="margin-bottom:16px">
+          <div class="node c-orange" style="flex:none;width:100%">
+            <div class="node-top">
+              <div class="node-icon">⚡</div>
+              <div>
+                <div class="node-title">filteredKpis (IIFE)</div>
+                <div class="node-file">client/app/page.js — inline derivation after const kpis = ...</div>
+              </div>
+            </div>
+            <div class="node-desc">Filters <code style="color:#7dd3fc">kpis.campaignBreakdown</code> by the two active dropdowns, then reduces the matching rows to recompute all totals and rebuild <code style="color:#7dd3fc">platformBreakdown</code> from scratch. No <code style="color:#7dd3fc">useMemo</code> needed — campaignBreakdown is ≤~10 entries.</div>
+            <div class="node-tags">
+              <span class="tag tag-in">IN: campaignBreakdown[], selectedCampaign, selectedPlatform</span>
+              <span class="tag tag-out">OUT: filteredKpis (same shape as kpis)</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center;color:#475569;font-size:12px;margin:4px 0 12px;font-weight:600;letter-spacing:.05em">↓ &nbsp; filteredKpis propagated to all dashboard sections &nbsp; ↓</div>
+
+        <div class="nodes-row parallel">
+
+          <div class="node c-orange">
+            <div style="font-size:20px;margin-bottom:8px">📊</div>
+            <div style="font-weight:700;color:#f1f5f9;margin-bottom:6px">8 KPI Cards</div>
+            <div style="color:#94a3b8;font-size:12px;line-height:1.6">All values read from <code style="color:#7dd3fc">filteredKpis.*</code></div>
+          </div>
+
+          <div class="node c-orange">
+            <div style="font-size:20px;margin-bottom:8px">🏷️</div>
+            <div style="font-weight:700;color:#f1f5f9;margin-bottom:6px">Platform KPI Cards</div>
+            <div style="color:#94a3b8;font-size:12px;line-height:1.6">Re-rendered from <code style="color:#7dd3fc">filteredKpis.platformBreakdown</code></div>
+          </div>
+
+          <div class="node c-orange">
+            <div style="font-size:20px;margin-bottom:8px">📈</div>
+            <div style="font-weight:700;color:#f1f5f9;margin-bottom:6px">Revenue / Pie / Funnel</div>
+            <div style="color:#94a3b8;font-size:12px;line-height:1.6"><code style="color:#7dd3fc">revenueSpendData</code>, <code style="color:#7dd3fc">pieData</code>, <code style="color:#7dd3fc">funnelData</code> derived from <code style="color:#7dd3fc">filteredKpis</code></div>
+          </div>
+
+          <div class="node c-orange">
+            <div style="font-size:20px;margin-bottom:8px">📝</div>
+            <div style="font-weight:700;color:#f1f5f9;margin-bottom:6px">Exec Summary</div>
+            <div style="color:#94a3b8;font-size:12px;line-height:1.6">ROAS, conversion rate, best platform from <code style="color:#7dd3fc">filteredKpis</code></div>
+          </div>
+
+        </div>
+
+        <div style="margin-top:14px;background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.18);border-radius:12px;padding:14px 18px;font-size:13px;color:#94a3b8;line-height:1.75">
+          <strong style="color:#fb923c">Not filter-responsive (by design):</strong>
+          Scatter, radar, and area charts use hardcoded sample data — there is no per-row historical data in the API response to derive them dynamically.
+          <code style="color:#7dd3fc">AIInsights</code> text is also static per upload — re-calling the AI per filter change would be expensive and serve no purpose.
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /pipeline -->
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Marketing AI Engine &nbsp;·&nbsp; <strong style="color:#475569">client/</strong> Next.js 16 + React 19 + Recharts &nbsp;·&nbsp; <strong style="color:#475569">server/</strong> Express 5 + Node.js &nbsp;·&nbsp; AI via OpenRouter → Claude</p>
+  </footer>
+
+</div><!-- /page -->
+
+<script>
+document.querySelectorAll('.conn-line').forEach(el => {
+  const col = el.style.getPropertyValue('--c') || '#3b82f6';
+  el.style.setProperty('--c', col);
+});
+</script>
+</body>
+</html>
