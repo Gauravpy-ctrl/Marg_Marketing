@@ -354,6 +354,55 @@
     .footer { text-align:center; padding-top:48px; }
     .footer p { font-size:12px; color:var(--text-3); line-height:1.8; }
     .footer strong { color:var(--text-2); }
+
+    /* ─── Overview filter bar ────────────────────────────── */
+    .ov-filter-bar {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 20px; margin-bottom: 24px;
+    }
+    .ov-filter-label {
+      font-size: 11px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: .1em;
+    }
+    .ov-filter-group { display: flex; align-items: center; gap: 8px; }
+    .ov-filter-group label { font-size: 13px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+    .ov-filter-sel {
+      background: #0d1e35; border: 1px solid rgba(255,255,255,.1);
+      border-radius: 9px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+      color: var(--text-1); cursor: pointer; outline: none;
+      font-family: 'Inter', sans-serif; min-width: 190px; transition: border-color .15s;
+    }
+    .ov-filter-sel:focus { border-color: var(--blue); }
+    .ov-clear-btn {
+      margin-left: auto; background: rgba(239,68,68,.12); color: #f87171;
+      border: 1px solid rgba(239,68,68,.25); border-radius: 8px;
+      padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: 'Inter', sans-serif; display: none;
+    }
+    .ov-clear-btn.show { display: block; }
+    .ov-active-badge {
+      display: none; background: var(--blue-dim); color: var(--blue);
+      border: 1px solid rgba(59,130,246,.3); border-radius: 6px;
+      font-size: 11px; font-weight: 700; padding: 3px 10px; letter-spacing: .05em;
+    }
+    .ov-active-badge.show { display: inline-block; }
+
+    /* ─── Overview platform KPI section ─────────────────── */
+    .ov-plat-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px;
+    }
+    .ov-plat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 20px 22px; border-top: 3px solid transparent;
+      transition: border-color .2s;
+    }
+    .ov-plat-card:hover { border-color: var(--border-hover); }
+    .ov-plat-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .ov-plat-name { font-size: 15px; font-weight: 700; color: var(--text-1); }
+    .ov-plat-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ov-plat-lbl { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+    .ov-plat-val { font-size: 17px; font-weight: 700; color: var(--text-1); }
   </style>
 </head>
 
@@ -386,6 +435,29 @@
   ════════════════════════════════════════════════════════ -->
   <div id="tab-overview" class="tab-panel active">
 
+    <!-- OVERVIEW FILTER BAR -->
+    <div class="ov-filter-bar">
+      <span class="ov-filter-label">Filter</span>
+      <div class="ov-filter-group">
+        <label for="ov-camp-sel">Campaign</label>
+        <select id="ov-camp-sel" class="ov-filter-sel" onchange="applyOverviewFilters()">
+          <option value="all">All Campaigns</option>
+        </select>
+      </div>
+      <div class="ov-filter-group">
+        <label for="ov-plat-sel">Platform</label>
+        <select id="ov-plat-sel" class="ov-filter-sel" onchange="applyOverviewFilters()">
+          <option value="all">All Platforms</option>
+          <option value="Google Ads">Google Ads</option>
+          <option value="Facebook">Facebook</option>
+          <option value="Instagram">Instagram</option>
+          <option value="Audience Network">Audience Network</option>
+        </select>
+      </div>
+      <span class="ov-active-badge" id="ov-badge">Filtered</span>
+      <button class="ov-clear-btn" id="ov-clear-btn" onclick="clearOverviewFilters()">Clear filters ×</button>
+    </div>
+
     <!-- KPI CARDS -->
     <section class="section">
       <div class="section-label fade-up">Key Performance Indicators</div>
@@ -393,53 +465,59 @@
 
         <div class="card kpi-card fade-up delay-1">
           <div class="kpi-label">Total Spend</div>
-          <div class="kpi-value" style="color:#f1f5f9">$75.0K</div>
+          <div class="kpi-value" id="ov-kpi-spend" style="color:#f1f5f9">$75.0K</div>
           <div class="kpi-delta neu">↑ Budget deployed</div>
         </div>
 
         <div class="card kpi-card fade-up delay-2">
           <div class="kpi-label">Total Revenue</div>
-          <div class="kpi-value" style="color:#10b981">$251.7K</div>
+          <div class="kpi-value" id="ov-kpi-revenue" style="color:#10b981">$251.7K</div>
           <div class="kpi-delta up">↑ 18% vs prior period</div>
         </div>
 
         <div class="card kpi-card fade-up delay-3">
           <div class="kpi-label">Total Clicks</div>
-          <div class="kpi-value" style="color:#3b82f6">48.5K</div>
+          <div class="kpi-value" id="ov-kpi-clicks" style="color:#3b82f6">48.5K</div>
           <div class="kpi-delta up">↑ 11% MoM</div>
         </div>
 
         <div class="card kpi-card fade-up delay-4">
           <div class="kpi-label">Impressions</div>
-          <div class="kpi-value" style="color:#8b5cf6">2.85M</div>
+          <div class="kpi-value" id="ov-kpi-impressions" style="color:#8b5cf6">2.85M</div>
           <div class="kpi-delta neu">Stable reach</div>
         </div>
 
         <div class="card kpi-card fade-up delay-5">
           <div class="kpi-label">Conversions</div>
-          <div class="kpi-value" style="color:#06b6d4">3,240</div>
+          <div class="kpi-value" id="ov-kpi-conversions" style="color:#06b6d4">3,240</div>
           <div class="kpi-delta up">↑ 9% MoM</div>
         </div>
 
         <div class="card kpi-card fade-up delay-6">
           <div class="kpi-label">Overall CTR</div>
-          <div class="kpi-value" style="color:#f59e0b">1.70%</div>
+          <div class="kpi-value" id="ov-kpi-ctr" style="color:#f59e0b">1.70%</div>
           <div class="kpi-delta down">↓ Below 2% target</div>
         </div>
 
         <div class="card kpi-card fade-up delay-7">
           <div class="kpi-label">Overall ROAS</div>
-          <div class="kpi-value" style="color:#10b981">3.36x</div>
+          <div class="kpi-value" id="ov-kpi-roas" style="color:#10b981">3.36x</div>
           <div class="kpi-delta up">↑ Strong efficiency</div>
         </div>
 
         <div class="card kpi-card fade-up delay-8">
           <div class="kpi-label">Conversion Rate</div>
-          <div class="kpi-value" style="color:#f1f5f9">6.68%</div>
+          <div class="kpi-value" id="ov-kpi-cr" style="color:#f1f5f9">6.68%</div>
           <div class="kpi-delta up">↑ Above industry avg</div>
         </div>
 
       </div>
+    </section>
+
+    <!-- PLATFORM KPI CARDS (OVERVIEW) -->
+    <section class="section fade-up delay-2" id="ov-plat-section">
+      <div class="section-label">Platform Breakdown</div>
+      <div class="ov-plat-grid" id="ov-plat-cards"></div>
     </section>
 
     <!-- REVENUE vs SPEND + EXEC SUMMARY -->
@@ -460,12 +538,12 @@
           <h2>Google Ads is the clear performance leader</h2>
           <p>Google Ads significantly outperforms all Meta sub-platforms across ROAS, revenue generation, and conversion efficiency. Multiple under-performing campaigns across Facebook and Audience Network are consuming budget without proportional returns — creating strong optimisation opportunities.</p>
           <div class="exec-stats">
-            <div class="exec-row"><span>Total ROAS</span><strong>3.36x</strong></div>
-            <div class="exec-row"><span>Google ROAS</span><strong style="color:#10b981">4.00x</strong></div>
-            <div class="exec-row"><span>Facebook ROAS</span><strong style="color:#f59e0b">2.40x</strong></div>
-            <div class="exec-row"><span>Instagram ROAS</span><strong style="color:#8b5cf6">2.50x</strong></div>
-            <div class="exec-row"><span>Conversion Rate</span><strong>6.68%</strong></div>
-            <div class="exec-row"><span>Best Platform</span><strong style="color:#3b82f6">Google Ads</strong></div>
+            <div class="exec-row"><span>Total ROAS</span><strong id="ov-exec-roas">3.36x</strong></div>
+            <div class="exec-row"><span>Google ROAS</span><strong id="ov-exec-g-roas" style="color:#10b981">4.00x</strong></div>
+            <div class="exec-row"><span>Facebook ROAS</span><strong id="ov-exec-fb-roas" style="color:#f59e0b">2.40x</strong></div>
+            <div class="exec-row"><span>Instagram ROAS</span><strong id="ov-exec-ig-roas" style="color:#8b5cf6">2.50x</strong></div>
+            <div class="exec-row"><span>Conversion Rate</span><strong id="ov-exec-cr">6.68%</strong></div>
+            <div class="exec-row"><span>Best Platform</span><strong id="ov-exec-best" style="color:#3b82f6">Google Ads</strong></div>
           </div>
         </div>
       </div>
@@ -950,7 +1028,8 @@ const tooltipStyle = {
 /* ═══════════════════ OVERVIEW CHARTS ═══════════════════ */
 
 /* 1. Revenue vs Spend (Bar) */
-new Chart(document.getElementById('barChart'), {
+let ovBarChart, ovPieChart, ovFunnelChart;
+ovBarChart = new Chart(document.getElementById('barChart'), {
   type: 'bar',
   data: {
     labels: ['Google Ads', 'Facebook', 'Instagram', 'Audience Network'],
@@ -973,7 +1052,7 @@ new Chart(document.getElementById('barChart'), {
 });
 
 /* 2. Platform Revenue Share (Pie) */
-new Chart(document.getElementById('pieChart'), {
+ovPieChart = new Chart(document.getElementById('pieChart'), {
   type: 'pie',
   data: {
     labels: ['Google Ads', 'Facebook', 'Instagram', 'Audience Network'],
@@ -998,7 +1077,7 @@ new Chart(document.getElementById('pieChart'), {
 });
 
 /* 3. Conversion Funnel (Line) */
-new Chart(document.getElementById('funnelChart'), {
+ovFunnelChart = new Chart(document.getElementById('funnelChart'), {
   type: 'line',
   data: {
     labels: ['Impressions', 'Clicks', 'Conversions'],
@@ -1198,20 +1277,20 @@ new Chart(document.getElementById('platPieChart'), {
 /* ═══════════════════ CAMPAIGN DATA + CHARTS ═══════════════════ */
 
 const CAMPAIGNS = [
-  { name:'Brand Search',           platform:'Google Ads',       spend:12000,  revenue:72000,  roas:6.00, ctr:5.10, conversions:800,  status:'top'             },
-  { name:'Shopping - Electronics', platform:'Google Ads',       spend: 8000,  revenue:40800,  roas:5.10, ctr:4.20, conversions:580,  status:'top'             },
-  { name:'Retargeting - Purchase', platform:'Instagram',        spend: 3000,  revenue:14400,  roas:4.80, ctr:3.60, conversions:195,  status:'top'             },
-  { name:'Performance Max',        platform:'Google Ads',       spend:10000,  revenue:43000,  roas:4.30, ctr:4.00, conversions:625,  status:'top'             },
-  { name:'Lookalike - Buyers',     platform:'Facebook',         spend: 5000,  revenue:19000,  roas:3.80, ctr:2.20, conversions:245,  status:'moderate'        },
-  { name:'Display Remarketing',    platform:'Google Ads',       spend: 8000,  revenue:24000,  roas:3.00, ctr:2.90, conversions:220,  status:'moderate'        },
-  { name:'Native - Retargeting',   platform:'Audience Network', spend: 1000,  revenue: 2800,  roas:2.80, ctr:1.10, conversions: 72,  status:'moderate'        },
-  { name:'Prospecting - Cold',     platform:'Facebook',         spend: 7000,  revenue:16100,  roas:2.30, ctr:1.10, conversions:185,  status:'moderate'        },
-  { name:'Stories - Awareness',    platform:'Instagram',        spend: 4000,  revenue: 6400,  roas:1.60, ctr:1.40, conversions:105,  status:'underperforming' },
-  { name:'Banner - Display',       platform:'Audience Network', spend: 2000,  revenue: 3200,  roas:1.60, ctr:0.40, conversions: 65,  status:'underperforming' },
-  { name:'Broad Match Test',       platform:'Facebook',         spend: 2000,  revenue: 3100,  roas:1.55, ctr:0.60, conversions: 78,  status:'underperforming' },
-  { name:'Interest - Broad',       platform:'Facebook',         spend: 4000,  revenue: 5000,  roas:1.25, ctr:0.80, conversions: 70,  status:'underperforming' },
-  { name:'Feed - Interest',        platform:'Instagram',        spend: 2000,  revenue: 1700,  roas:0.85, ctr:0.90, conversions: 28,  status:'waste'           },
-  { name:'Generic Keywords',       platform:'Google Ads',       spend: 7000,  revenue: 1200,  roas:0.17, ctr:1.20, conversions: 95,  status:'waste'           },
+  { name:'Brand Search',           platform:'Google Ads',       spend:12000, revenue: 72000, roas:6.00, ctr:5.10, conversions:800, clicks: 7760, impressions: 152157, status:'top'             },
+  { name:'Shopping - Electronics', platform:'Google Ads',       spend: 8000, revenue: 40800, roas:5.10, ctr:4.20, conversions:580, clicks: 5173, impressions: 123167, status:'top'             },
+  { name:'Retargeting - Purchase', platform:'Instagram',        spend: 3000, revenue: 14400, roas:4.80, ctr:3.60, conversions:195, clicks: 1940, impressions:  53889, status:'top'             },
+  { name:'Performance Max',        platform:'Google Ads',       spend:10000, revenue: 43000, roas:4.30, ctr:4.00, conversions:625, clicks: 6467, impressions: 161675, status:'top'             },
+  { name:'Lookalike - Buyers',     platform:'Facebook',         spend: 5000, revenue: 19000, roas:3.80, ctr:2.20, conversions:245, clicks: 3233, impressions: 146955, status:'moderate'        },
+  { name:'Display Remarketing',    platform:'Google Ads',       spend: 8000, revenue: 24000, roas:3.00, ctr:2.90, conversions:220, clicks: 5173, impressions: 178379, status:'moderate'        },
+  { name:'Native - Retargeting',   platform:'Audience Network', spend: 1000, revenue:  2800, roas:2.80, ctr:1.10, conversions: 72, clicks:  647, impressions:  58818, status:'moderate'        },
+  { name:'Prospecting - Cold',     platform:'Facebook',         spend: 7000, revenue: 16100, roas:2.30, ctr:1.10, conversions:185, clicks: 4527, impressions: 411545, status:'moderate'        },
+  { name:'Stories - Awareness',    platform:'Instagram',        spend: 4000, revenue:  6400, roas:1.60, ctr:1.40, conversions:105, clicks: 2587, impressions: 184786, status:'underperforming' },
+  { name:'Banner - Display',       platform:'Audience Network', spend: 2000, revenue:  3200, roas:1.60, ctr:0.40, conversions: 65, clicks: 1293, impressions: 323250, status:'underperforming' },
+  { name:'Broad Match Test',       platform:'Facebook',         spend: 2000, revenue:  3100, roas:1.55, ctr:0.60, conversions: 78, clicks: 1293, impressions: 215500, status:'underperforming' },
+  { name:'Interest - Broad',       platform:'Facebook',         spend: 4000, revenue:  5000, roas:1.25, ctr:0.80, conversions: 70, clicks: 2587, impressions: 323375, status:'underperforming' },
+  { name:'Feed - Interest',        platform:'Instagram',        spend: 2000, revenue:  1700, roas:0.85, ctr:0.90, conversions: 28, clicks: 1293, impressions: 143667, status:'waste'           },
+  { name:'Generic Keywords',       platform:'Google Ads',       spend: 7000, revenue:  1200, roas:0.17, ctr:1.20, conversions: 95, clicks: 4527, impressions: 377250, status:'waste'           },
 ];
 
 const fmt = v => v >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : v >= 1e3 ? '$'+(v/1e3).toFixed(0)+'K' : '$'+v.toFixed(0);
@@ -1423,6 +1502,147 @@ function filterCamps() {
 }
 
 filterCamps();
+
+
+/* ═══════════════════ OVERVIEW FILTERING ═══════════════════ */
+
+const OV_PLAT_ORDER = ['Google Ads', 'Facebook', 'Instagram', 'Audience Network'];
+const OV_PLAT_HEX   = { 'Google Ads':'#3b82f6', 'Facebook':'#8b5cf6', 'Instagram':'#ec4899', 'Audience Network':'#10b981' };
+
+/* Populate campaign dropdown */
+(function() {
+  const sel = document.getElementById('ov-camp-sel');
+  CAMPAIGNS.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.name;
+    opt.textContent = c.name.length > 38 ? c.name.slice(0, 38) + '…' : c.name;
+    sel.appendChild(opt);
+  });
+})();
+
+function computeOvKpis(list) {
+  const S = f => list.reduce((s, c) => s + (c[f] || 0), 0);
+  const spend = S('spend'), revenue = S('revenue'), clicks = S('clicks'),
+        impressions = S('impressions'), conversions = S('conversions');
+  const roas = spend > 0 ? revenue / spend : 0;
+  const ctr  = impressions > 0 ? (clicks / impressions) * 100 : 0;
+  const cr   = clicks > 0 ? (conversions / clicks) * 100 : 0;
+
+  const pb = {};
+  list.forEach(c => {
+    if (!pb[c.platform]) pb[c.platform] = { spend:0, revenue:0, clicks:0, impressions:0, conversions:0 };
+    const p = pb[c.platform];
+    p.spend += c.spend; p.revenue += c.revenue;
+    p.clicks += c.clicks; p.impressions += c.impressions; p.conversions += c.conversions;
+  });
+  Object.keys(pb).forEach(k => {
+    const p = pb[k];
+    p.roas = p.spend > 0 ? p.revenue / p.spend : 0;
+    p.ctr  = p.impressions > 0 ? (p.clicks / p.impressions) * 100 : 0;
+    p.cr   = p.clicks > 0 ? (p.conversions / p.clicks) * 100 : 0;
+  });
+  return { spend, revenue, clicks, impressions, conversions, roas, ctr, cr, pb };
+}
+
+function ovFmt(v) {
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+  return '$' + v.toFixed(0);
+}
+function ovNum(v) {
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+  return v.toFixed(0);
+}
+
+function renderOvPlatCards(pb) {
+  const present = OV_PLAT_ORDER.filter(p => pb[p]);
+  document.getElementById('ov-plat-cards').innerHTML = present.map(name => {
+    const p   = pb[name];
+    const col = OV_PLAT_HEX[name] || '#64748b';
+    const roasColor = p.roas >= 4 ? '#10b981' : p.roas >= 2 ? '#f59e0b' : '#f87171';
+    return `
+    <div class="ov-plat-card" style="border-top-color:${col}">
+      <div class="ov-plat-head">
+        <div class="platform-dot" style="background:${col};box-shadow:0 0 8px ${col}66"></div>
+        <span class="ov-plat-name">${name}</span>
+      </div>
+      <div class="ov-plat-metrics">
+        <div><div class="ov-plat-lbl">Spend</div><div class="ov-plat-val">${ovFmt(p.spend)}</div></div>
+        <div><div class="ov-plat-lbl">Revenue</div><div class="ov-plat-val">${ovFmt(p.revenue)}</div></div>
+        <div><div class="ov-plat-lbl">ROAS</div><div class="ov-plat-val" style="color:${roasColor}">${p.roas.toFixed(2)}x</div></div>
+        <div><div class="ov-plat-lbl">CTR</div><div class="ov-plat-val">${p.ctr.toFixed(2)}%</div></div>
+        <div><div class="ov-plat-lbl">Conversions</div><div class="ov-plat-val">${p.conversions.toLocaleString()}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function applyOverviewFilters() {
+  const selCamp = document.getElementById('ov-camp-sel').value;
+  const selPlat = document.getElementById('ov-plat-sel').value;
+  const active  = selCamp !== 'all' || selPlat !== 'all';
+
+  document.getElementById('ov-clear-btn').classList.toggle('show', active);
+  document.getElementById('ov-badge').classList.toggle('show', active);
+
+  const filtered = CAMPAIGNS.filter(c =>
+    (selCamp === 'all' || c.name === selCamp) &&
+    (selPlat === 'all' || c.platform === selPlat)
+  );
+  const src = filtered.length ? filtered : CAMPAIGNS;
+  const d = computeOvKpis(src);
+
+  /* KPI cards */
+  document.getElementById('ov-kpi-spend').textContent       = ovFmt(d.spend);
+  document.getElementById('ov-kpi-revenue').textContent     = ovFmt(d.revenue);
+  document.getElementById('ov-kpi-clicks').textContent      = ovNum(d.clicks);
+  document.getElementById('ov-kpi-impressions').textContent = ovNum(d.impressions);
+  document.getElementById('ov-kpi-conversions').textContent = d.conversions.toLocaleString();
+  document.getElementById('ov-kpi-ctr').textContent         = d.ctr.toFixed(2) + '%';
+  document.getElementById('ov-kpi-roas').textContent        = d.roas.toFixed(2) + 'x';
+  document.getElementById('ov-kpi-cr').textContent          = d.cr.toFixed(2) + '%';
+
+  /* Exec summary */
+  const bestPlat = Object.entries(d.pb).sort(([,a],[,b]) => b.roas - a.roas)[0]?.[0] || 'N/A';
+  document.getElementById('ov-exec-roas').textContent    = d.roas.toFixed(2) + 'x';
+  document.getElementById('ov-exec-g-roas').textContent  = (d.pb['Google Ads']?.roas  || 0).toFixed(2) + 'x';
+  document.getElementById('ov-exec-fb-roas').textContent = (d.pb['Facebook']?.roas    || 0).toFixed(2) + 'x';
+  document.getElementById('ov-exec-ig-roas').textContent = (d.pb['Instagram']?.roas   || 0).toFixed(2) + 'x';
+  document.getElementById('ov-exec-cr').textContent      = d.cr.toFixed(2) + '%';
+  document.getElementById('ov-exec-best').textContent    = bestPlat;
+
+  /* Platform KPI cards */
+  renderOvPlatCards(d.pb);
+
+  /* Update charts */
+  const plats    = OV_PLAT_ORDER.filter(p => d.pb[p]);
+  const revenues = plats.map(p => d.pb[p].revenue);
+  const spends   = plats.map(p => d.pb[p].spend);
+  const platCols = plats.map(p => OV_PLAT_HEX[p] || BLUE);
+
+  ovBarChart.data.labels            = plats;
+  ovBarChart.data.datasets[0].data  = revenues;
+  ovBarChart.data.datasets[1].data  = spends;
+  ovBarChart.update();
+
+  ovPieChart.data.labels                          = plats;
+  ovPieChart.data.datasets[0].data                = revenues;
+  ovPieChart.data.datasets[0].backgroundColor     = platCols;
+  ovPieChart.update();
+
+  ovFunnelChart.data.datasets[0].data = [d.impressions, d.clicks, d.conversions];
+  ovFunnelChart.update();
+}
+
+function clearOverviewFilters() {
+  document.getElementById('ov-camp-sel').value = 'all';
+  document.getElementById('ov-plat-sel').value = 'all';
+  applyOverviewFilters();
+}
+
+/* Init overview on load */
+applyOverviewFilters();
 </script>
 
 </body>

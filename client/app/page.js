@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 
 import UploadForm from "./components/UploadForm";
@@ -71,6 +71,13 @@ export default function Home() {
   const [results, setResults] = useState(null);
   const [insights, setInsights] = useState("");
   const [activeView, setActiveView] = useState("dashboard");
+  const [selectedCampaign, setSelectedCampaign] = useState("all");
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
+
+  useEffect(() => {
+    setSelectedCampaign("all");
+    setSelectedPlatform("all");
+  }, [results]);
 
   // FORMAT LARGE NUMBERS
 
@@ -96,44 +103,104 @@ export default function Home() {
 
   const kpis = results?.analytics || results?.kpis || {};
 
+  // FILTERED KPIs — client-side filter derived from campaignBreakdown
+
+  const filteredCampaigns = (kpis.campaignBreakdown || []).filter((c) => {
+    const okCampaign = selectedCampaign === "all" || c.name === selectedCampaign;
+    const okPlatform = selectedPlatform === "all" || c.platform === selectedPlatform;
+    return okCampaign && okPlatform;
+  });
+
+  const filteredKpis = (() => {
+    if (!filteredCampaigns.length) return kpis;
+
+    const totalSpend       = filteredCampaigns.reduce((s, c) => s + c.spend, 0);
+    const totalRevenue     = filteredCampaigns.reduce((s, c) => s + c.revenue, 0);
+    const totalClicks      = filteredCampaigns.reduce((s, c) => s + c.clicks, 0);
+    const totalImpressions = filteredCampaigns.reduce((s, c) => s + c.impressions, 0);
+    const totalConversions = filteredCampaigns.reduce((s, c) => s + c.conversions, 0);
+    const overallCTR       = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+    const overallROAS      = totalSpend > 0 ? totalRevenue / totalSpend : 0;
+    const conversionRate   = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+
+    const platformMap = {};
+    filteredCampaigns.forEach((c) => {
+      if (!platformMap[c.platform]) {
+        platformMap[c.platform] = { spend: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0 };
+      }
+      const p = platformMap[c.platform];
+      p.spend       += c.spend;
+      p.revenue     += c.revenue;
+      p.clicks      += c.clicks;
+      p.impressions += c.impressions;
+      p.conversions += c.conversions;
+    });
+    Object.keys(platformMap).forEach((k) => {
+      const p = platformMap[k];
+      p.roas           = p.spend       > 0 ? p.revenue / p.spend                  : 0;
+      p.ctr            = p.impressions > 0 ? (p.clicks / p.impressions) * 100      : 0;
+      p.cpc            = p.clicks      > 0 ? p.spend / p.clicks                   : 0;
+      p.conversionRate = p.clicks      > 0 ? (p.conversions / p.clicks) * 100     : 0;
+    });
+
+    const GOOGLE_KEYS = ["Google Ads", "Google"];
+    const META_KEYS   = ["Facebook", "Instagram", "Meta", "Audience Network"];
+    const sum = (keys, f) => keys.reduce((s, k) => s + (platformMap[k]?.[f] || 0), 0);
+
+    return {
+      totalSpend, totalRevenue, totalClicks, totalImpressions, totalConversions,
+      overallCTR, overallROAS, conversionRate,
+      googleRevenue:     sum(GOOGLE_KEYS, "revenue"),
+      metaRevenue:       sum(META_KEYS,   "revenue"),
+      googleSpend:       sum(GOOGLE_KEYS, "spend"),
+      metaSpend:         sum(META_KEYS,   "spend"),
+      platformBreakdown: platformMap,
+      campaignBreakdown: filteredCampaigns,
+    };
+  })();
+
+  const bestPlatform =
+    Object.entries(filteredKpis.platformBreakdown || {})
+      .sort(([, a], [, b]) => b.roas - a.roas)[0]?.[0] || "N/A";
+
   // CHART DATA
 
   const revenueSpendData = [
     {
       platform: "Google",
-      Revenue: kpis.googleRevenue || 0,
-      Spend: kpis.googleSpend || 0,
+      Revenue: filteredKpis.googleRevenue || 0,
+      Spend: filteredKpis.googleSpend || 0,
     },
     {
       platform: "Meta",
-      Revenue: kpis.metaRevenue || 0,
-      Spend: kpis.metaSpend || 0,
+      Revenue: filteredKpis.metaRevenue || 0,
+      Spend: filteredKpis.metaSpend || 0,
     },
   ];
 
   const pieData = [
     {
       name: "Google",
-      value: kpis.googleRevenue || 0,
+      value: filteredKpis.googleRevenue || 0,
     },
     {
       name: "Meta",
-      value: kpis.metaRevenue || 0,
+      value: filteredKpis.metaRevenue || 0,
     },
   ];
 
   const funnelData = [
     {
       stage: "Impressions",
-      value: kpis.totalImpressions || 0,
+      value: filteredKpis.totalImpressions || 0,
     },
     {
       stage: "Clicks",
-      value: kpis.totalClicks || 0,
+      value: filteredKpis.totalClicks || 0,
     },
     {
       stage: "Conversions",
-      value: kpis.totalConversions || 0,
+      value: filteredKpis.totalConversions || 0,
     },
   ];
 
@@ -359,6 +426,129 @@ export default function Home() {
 
             {activeView === "dashboard" && (
             <>
+            {/* FILTER BAR */}
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginBottom: "28px",
+                background: "#ffffff",
+                borderRadius: "16px",
+                padding: "16px 24px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  color: "#64748b",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  marginRight: "4px",
+                }}
+              >
+                Filter:
+              </span>
+
+              {/* Campaign dropdown */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <label
+                  style={{ fontSize: "13px", fontWeight: "600", color: "#475569" }}
+                >
+                  Campaign
+                </label>
+                <select
+                  value={selectedCampaign}
+                  onChange={(e) => setSelectedCampaign(e.target.value)}
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
+                    padding: "8px 32px 8px 14px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#0f172a",
+                    cursor: "pointer",
+                    outline: "none",
+                    appearance: "auto",
+                    minWidth: "220px",
+                  }}
+                >
+                  <option value="all">All Campaigns</option>
+                  {[...new Set((kpis.campaignBreakdown || []).map((c) => c.name))].map(
+                    (name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              {/* Platform dropdown */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <label
+                  style={{ fontSize: "13px", fontWeight: "600", color: "#475569" }}
+                >
+                  Platform
+                </label>
+                <select
+                  value={selectedPlatform}
+                  onChange={(e) => setSelectedPlatform(e.target.value)}
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
+                    padding: "8px 32px 8px 14px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#0f172a",
+                    cursor: "pointer",
+                    outline: "none",
+                    appearance: "auto",
+                    minWidth: "180px",
+                  }}
+                >
+                  <option value="all">All Platforms</option>
+                  {["Google Ads", "Facebook", "Instagram", "Audience Network"].filter(
+                    (p) => kpis.platformBreakdown?.[p]
+                  ).map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Active filter badge */}
+              {(selectedCampaign !== "all" || selectedPlatform !== "all") && (
+                <button
+                  onClick={() => {
+                    setSelectedCampaign("all");
+                    setSelectedPlatform("all");
+                  }}
+                  style={{
+                    marginLeft: "auto",
+                    background: "#fee2e2",
+                    color: "#dc2626",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "6px 14px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear filters ×
+                </button>
+              )}
+            </div>
+
             {/* KPI SECTION */}
 
             <div
@@ -374,40 +564,40 @@ export default function Home() {
               {[
                 {
                   label: "Total Spend",
-                  value: `$${formatNumber(kpis.totalSpend)}`,
+                  value: `$${formatNumber(filteredKpis.totalSpend)}`,
                 },
                 {
                   label: "Total Revenue",
-                  value: `$${formatNumber(kpis.totalRevenue)}`,
+                  value: `$${formatNumber(filteredKpis.totalRevenue)}`,
                 },
                 {
                   label: "Total Clicks",
-                  value: formatNumber(kpis.totalClicks),
+                  value: formatNumber(filteredKpis.totalClicks),
                 },
                 {
                   label: "Total Impressions",
-                  value: formatNumber(kpis.totalImpressions),
+                  value: formatNumber(filteredKpis.totalImpressions),
                 },
                 {
                   label: "Total Conversions",
-                  value: formatNumber(kpis.totalConversions),
+                  value: formatNumber(filteredKpis.totalConversions),
                 },
                 {
                   label: "Overall CTR",
                   value: `${Number(
-                    kpis.overallCTR || 0
+                    filteredKpis.overallCTR || 0
                   ).toFixed(2)}%`,
                 },
                 {
                   label: "Overall ROAS",
                   value: Number(
-                    kpis.overallROAS || 0
+                    filteredKpis.overallROAS || 0
                   ).toFixed(2),
                 },
                 {
                   label: "Conversion Rate",
                   value: `${Number(
-                    kpis.conversionRate || 0
+                    filteredKpis.conversionRate || 0
                   ).toFixed(2)}%`,
                 },
               ].map((item, index) => (
@@ -443,6 +633,136 @@ export default function Home() {
                 </div>
               ))}
             </div>
+
+            {/* PLATFORM KPI CARDS */}
+
+            {(() => {
+              const PLATFORM_ORDER = ["Google Ads", "Facebook", "Instagram", "Audience Network", "Meta"];
+              const PLATFORM_COLORS = {
+                "Google Ads":        { dot: "#2563eb", bg: "#eff6ff", label: "#1d4ed8" },
+                "Facebook":          { dot: "#7c3aed", bg: "#f5f3ff", label: "#6d28d9" },
+                "Instagram":         { dot: "#db2777", bg: "#fdf2f8", label: "#be185d" },
+                "Audience Network":  { dot: "#059669", bg: "#ecfdf5", label: "#047857" },
+                "Meta":              { dot: "#64748b", bg: "#f8fafc", label: "#475569" },
+              };
+
+              const pb = filteredKpis.platformBreakdown || {};
+              const platforms = [
+                ...PLATFORM_ORDER.filter((p) => pb[p]),
+                ...Object.keys(pb).filter((p) => !PLATFORM_ORDER.includes(p)),
+              ];
+
+              if (!platforms.length) return null;
+
+              return (
+                <div style={{ marginBottom: "30px" }}>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      color: "#94a3b8",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.07em",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    Platform Breakdown
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                      gap: "16px",
+                    }}
+                  >
+                    {platforms.map((name) => {
+                      const p = pb[name];
+                      const colors = PLATFORM_COLORS[name] || PLATFORM_COLORS["Meta"];
+                      return (
+                        <div
+                          key={name}
+                          style={{
+                            background: "#ffffff",
+                            borderRadius: "20px",
+                            padding: "22px 24px",
+                            boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
+                            borderTop: `4px solid ${colors.dot}`,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              marginBottom: "16px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: "10px",
+                                height: "10px",
+                                borderRadius: "50%",
+                                background: colors.dot,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: "15px",
+                                fontWeight: "700",
+                                color: "#0f172a",
+                              }}
+                            >
+                              {name}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: "12px",
+                            }}
+                          >
+                            {[
+                              { label: "Spend",       value: `$${formatNumber(p.spend)}` },
+                              { label: "Revenue",     value: `$${formatNumber(p.revenue)}` },
+                              { label: "ROAS",        value: p.roas.toFixed(2) },
+                              { label: "CTR",         value: `${p.ctr.toFixed(2)}%` },
+                              { label: "Conversions", value: formatNumber(p.conversions) },
+                            ].map((stat) => (
+                              <div key={stat.label}>
+                                <p
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: "600",
+                                    color: "#94a3b8",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    marginBottom: "3px",
+                                  }}
+                                >
+                                  {stat.label}
+                                </p>
+                                <p
+                                  style={{
+                                    fontSize: "17px",
+                                    fontWeight: "800",
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {stat.value}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* TOP SECTION */}
 
@@ -613,7 +933,7 @@ export default function Home() {
                     <span>Total ROAS</span>
 
                     <strong>
-                      {Number(kpis.overallROAS || 0).toFixed(2)}
+                      {Number(filteredKpis.overallROAS || 0).toFixed(2)}
                     </strong>
                   </div>
 
@@ -627,7 +947,7 @@ export default function Home() {
                     <span>Conversion Rate</span>
 
                     <strong>
-                      {Number(kpis.conversionRate || 0).toFixed(2)}%
+                      {Number(filteredKpis.conversionRate || 0).toFixed(2)}%
                     </strong>
                   </div>
 
@@ -639,7 +959,7 @@ export default function Home() {
                   >
                     <span>Best Platform</span>
 
-                    <strong>Google Ads</strong>
+                    <strong>{bestPlatform}</strong>
                   </div>
                 </div>
               </div>
