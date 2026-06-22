@@ -1,0 +1,14 @@
+{
+  "name": "marketing-ai-engine",
+  "version": "1.0.0",
+  "description": "Standalone marketing analytics + AI insight module",
+  "main": "marketingAI.js",
+  "scripts": {
+    "test": "node marketingAI.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "openai": "^4.104.0"
+  },
+  "license": "MIT"
+}
