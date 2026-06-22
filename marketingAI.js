@@ -33,10 +33,13 @@
 
 const path   = require("path");
 const fs     = require("fs").promises;
+const fss    = require("fs");
 
-// Load .env relative to THIS file so the module works when imported from
-// any directory, not only from the project root.
-require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+// Load .env: try root first, fall back to server/.env so the module works
+// both standalone (root .env) and when used inside the monorepo (server/.env).
+const rootEnv   = path.resolve(__dirname, ".env");
+const serverEnv = path.resolve(__dirname, "server", ".env");
+require("dotenv").config({ path: fss.existsSync(rootEnv) ? rootEnv : serverEnv });
 
 const OpenAI = require("openai");
 
@@ -515,7 +518,7 @@ async function generateAIInsights(data, kpis) {
   try {
     const prompt = buildInsightPrompt(kpis);
     const response = await getAIClient().chat.completions.create({
-      model:       "anthropic/claude-3.5-haiku",
+      model:       "anthropic/claude-haiku-4.5",
       messages: [
         {
           role:    "system",
